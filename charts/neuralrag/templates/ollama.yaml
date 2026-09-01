@@ -1,0 +1,84 @@
+# Ollama — local LLM. The model cache is NOT backed up (excluded below):
+# it is re-downloaded at start, which keeps backups small.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: neuralrag-ollama-models
+  labels:
+    {{- include "neuralrag.labels" . | nindent 4 }}
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: {{ .Values.ollama.storage }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: neuralrag-ollama
+  labels:
+    {{- include "neuralrag.labels" . | nindent 4 }}
+spec:
+  selector:
+    app.kubernetes.io/name: neuralrag-ollama
+  ports:
+    - name: http
+      port: 11434
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: neuralrag-ollama
+  labels:
+    {{- include "neuralrag.labels" . | nindent 4 }}
+    app.kubernetes.io/name: neuralrag-ollama
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: neuralrag-ollama
+  template:
+    metadata:
+      labels:
+        {{- include "neuralrag.labels" . | nindent 8 }}
+        app.kubernetes.io/name: neuralrag-ollama
+      annotations:
+        backup.velero.io/backup-volumes-excludes: models
+    spec:
+      containers:
+        - name: ollama
+          image: {{ .Values.ollama.image }}
+          # Serve, pull the model if missing (idempotent), keep serving.
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              ollama serve &
+              until ollama list >/dev/null 2>&1; do sleep 1; done
+              ollama pull {{ .Values.ollama.model }}
+              touch /tmp/model-ready
+              wait
+          env:
+            - name: OLLAMA_KEEP_ALIVE
+              value: "24h"
+            # Traffic generator + k6 run concurrently; queueing would inflate latency.
+            - name: OLLAMA_NUM_PARALLEL
+              value: "2"
+          ports:
+            - name: http
+              containerPort: 11434
+          readinessProbe:
+            exec:
+              command: ["test", "-f", "/tmp/model-ready"]
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.ollama.resources | nindent 12 }}
+          volumeMounts:
+            - name: models
+              mountPath: /root/.ollama
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: neuralrag-ollama-models

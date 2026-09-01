@@ -1,0 +1,76 @@
+# Default values. Release-specific values (image tag, injected faults) live in
+# gitops/releases/neuralrag.yaml, which Argo CD layers on top of this file.
+
+image:
+  repository: ghcr.io/rihemfathallah/neuralrag-backend
+  tag: main
+  pullPolicy: IfNotPresent
+
+release:
+  # Free text, copied to a pod annotation; changing it creates a new revision.
+  id: baseline
+  # Fault injection (EF-10). All off = healthy release.
+  chaos:
+    errorRate: "0"
+    latencyMs: "0"
+    crashOnStart: "false"
+
+backend:
+  replicas: 2
+  nodePort: 30080
+  logLevel: info
+  # Chunks sent to the LLM per question (original default 5); fewer = shorter prompt.
+  topK: 3
+  apiKeySecret: neuralrag-api   # created by Terraform, never in Git
+  resources:
+    requests: { cpu: 100m, memory: 600Mi }
+    limits: { memory: 1536Mi }
+
+rollout:
+  # Basic canary: with 2 replicas, 50 % = 1 canary pod + 1 stable pod.
+  canaryWeight: 50
+  pauseDuration: 4m
+  # A release whose pods never become ready (crash loop) is aborted after this.
+  progressDeadlineSeconds: 300
+
+analysis:
+  initialDelay: 60s
+  interval: 30s
+  count: 8
+  failureLimit: 1
+  prometheusAddress: http://kube-prometheus-stack-prometheus.monitoring.svc:9090
+  # Canary fails if more than 5 % of its requests are 5xx...
+  maxErrorRatio: 0.05
+  # ...or if more than 5 % are slower than the latency SLO threshold (p95 > threshold).
+  maxSlowRatio: 0.05
+
+slo:
+  # Must be one of the histogram buckets of metrics/sli.py, written as the
+  # Python client renders it ("10.0", not "10"). Keep in sync with
+  # gitops/observability/slo-rules.yaml.
+  latencyThresholdLe: "10.0"
+
+chromadb:
+  image: chromadb/chroma:0.5.0
+  storage: 1Gi
+  resources:
+    requests: { cpu: 50m, memory: 256Mi }
+    limits: { memory: 1Gi }
+
+ollama:
+  image: ollama/ollama:0.9.0
+  model: qwen2.5:0.5b
+  # Cap the answer length: bounded output = bounded latency on CPU.
+  numPredict: 160
+  storage: 3Gi
+  resources:
+    requests: { cpu: 500m, memory: 1Gi }
+    limits: { memory: 3Gi }
+
+trafficGenerator:
+  # Steady "normal" traffic: feeds the SLIs, the canary analysis and the
+  # 24 h false-positive measurement.
+  enabled: true
+  image: curlimages/curl:8.11.0
+  intervalSeconds: 2
+  timeoutSeconds: 60

@@ -1,0 +1,99 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: neuralrag-backend
+  labels:
+    {{- include "neuralrag.labels" . | nindent 4 }}
+    {{- include "neuralrag.backendSelector" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.backend.replicas }}
+  revisionHistoryLimit: 5
+  progressDeadlineSeconds: {{ .Values.rollout.progressDeadlineSeconds }}
+  progressDeadlineAbort: true
+  selector:
+    matchLabels:
+      {{- include "neuralrag.backendSelector" . | nindent 6 }}
+  strategy:
+    canary:
+      # Background analysis on the canary pods only; failure => abort => 100 % stable.
+      analysis:
+        templates:
+          - templateName: neuralrag-canary
+        args:
+          - name: canary-hash
+            valueFrom:
+              podTemplateHashValue: Latest
+      steps:
+        - setWeight: {{ .Values.rollout.canaryWeight }}
+        - pause:
+            duration: {{ .Values.rollout.pauseDuration }}
+  template:
+    metadata:
+      labels:
+        {{- include "neuralrag.labels" . | nindent 8 }}
+        {{- include "neuralrag.backendSelector" . | nindent 8 }}
+      annotations:
+        neuralrag/release-id: {{ .Values.release.id | quote }}
+        # Nothing to back up in this pod (stateless).
+        backup.velero.io/backup-volumes-excludes: tmp
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        fsGroup: 10001
+      containers:
+        - name: backend
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8000
+          env:
+            - name: APP_VERSION
+              value: {{ .Values.image.tag | quote }}
+            - name: CHROMA_HOST
+              value: neuralrag-chromadb
+            - name: CHROMA_PORT
+              value: "8000"
+            - name: OLLAMA_URL
+              value: http://neuralrag-ollama:11434
+            - name: OLLAMA_MODEL
+              value: {{ .Values.ollama.model | quote }}
+            - name: OLLAMA_NUM_PREDICT
+              value: {{ .Values.ollama.numPredict | quote }}
+            - name: TOP_K
+              value: {{ .Values.backend.topK | quote }}
+            - name: LOG_LEVEL
+              value: {{ .Values.backend.logLevel | quote }}
+            - name: AUTO_INDEX_ON_STARTUP
+              value: "false"
+            - name: API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.backend.apiKeySecret }}
+                  key: API_KEY
+            - name: CHAOS_ERROR_RATE
+              value: {{ .Values.release.chaos.errorRate | quote }}
+            - name: CHAOS_LATENCY_MS
+              value: {{ .Values.release.chaos.latencyMs | quote }}
+            - name: CHAOS_CRASH_ON_START
+              value: {{ .Values.release.chaos.crashOnStart | quote }}
+          startupProbe:
+            httpGet: { path: /health, port: http }
+            periodSeconds: 5
+            failureThreshold: 36
+          readinessProbe:
+            httpGet: { path: /health, port: http }
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /health, port: http }
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.backend.resources | nindent 12 }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
