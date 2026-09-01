@@ -1,0 +1,17 @@
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+*.tfvars
+!example.tfvars
+# kubeconfig written by Terraform
+.kube/
+# Secrets
+.env
+# Build / caches
+build/
+__pycache__/
+*.pyc
+.pytest_cache/
+results/slo/k6-summary.json

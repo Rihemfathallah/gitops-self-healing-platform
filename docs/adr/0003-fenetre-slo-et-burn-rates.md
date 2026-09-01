@@ -1,0 +1,33 @@
+# ADR 0003 — SLO sur 7 jours et seuils de burn rate
+
+**Statut** : accepté
+
+## Contexte
+EF-06/EF-07 : deux SLO (disponibilité, latence p95) et des alertes sur la vitesse de
+consommation du budget d'erreur. La plateforme tourne sur un portable : l'historique dépasse
+rarement quelques jours, et les incidents simulés doivent être détectés en quelques minutes.
+
+## Décision
+| SLO | SLI | Cible | Budget |
+| --- | --- | --- | --- |
+| Disponibilité | part des requêtes API non 5xx | 99,5 % sur 7 j | 0,5 % |
+| Latence | part des requêtes API servies en ≤ 10 s (⇔ p95 ≤ 10 s) | 95 % sur 7 j | 5 % |
+
+Alertes multi-fenêtres / multi-burn-rate (méthode du *SRE Workbook*), recalculées pour 7 jours :
+- **page** : 2 % du budget en 1 h → burn rate 0,02 × 168 / 1 = **3,36** (fenêtres 1 h et 5 min) ;
+- **ticket** : 5 % du budget en 6 h → burn rate 0,05 × 168 / 6 = **1,4** (fenêtres 6 h et 30 min).
+
+## Pourquoi
+- 30 jours (valeur habituelle) n'a pas de sens sans 30 jours d'historique ; 7 jours tient dans
+  la rétention Prometheus (8 j) et reste interprétable.
+- Le SLI de latence est un ratio de requêtes rapides et non un p95 calculé : un ratio se
+  somme correctement sur des fenêtres et donne directement un budget d'erreur.
+- 10 s : la réponse est générée par un LLM sur CPU (qwen2.5 0,5B) ; seuil à revoir après la
+  première mesure de base (`make exp-slo`). Le seuil doit être une borne de l'histogramme
+  (`metrics/sli.py`). Pour que la latence reste bornée, la réponse est limitée à 160 tokens
+  (`ollama.numPredict`) et le prompt à 3 extraits (`backend.topK`).
+
+## Limites
+- Un SLI calculé côté application ne voit pas une panne totale (aucune requête n'arrive) :
+  l'alerte symptôme `NeuralRAGBackendDown` couvre ce cas.
+- Les règles sont testées hors cluster par `promtool test rules` (CI).
