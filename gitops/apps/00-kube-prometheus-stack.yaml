@@ -1,0 +1,86 @@
+# Wave -3: Prometheus Operator CRDs, Prometheus, Alertmanager, Grafana (EF-05..EF-08)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kube-prometheus-stack
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-3"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: kube-prometheus-stack
+    targetRevision: 93.3.1
+    helm:
+      releaseName: kube-prometheus-stack
+      valuesObject:
+        fullnameOverride: kube-prometheus-stack
+        # kind does not expose these control-plane components: scraping them
+        # would only produce permanent false alerts.
+        kubeEtcd: { enabled: false }
+        kubeControllerManager: { enabled: false }
+        kubeScheduler: { enabled: false }
+        kubeProxy: { enabled: false }
+        defaultRules:
+          create: true
+          rules:
+            etcd: false
+            kubeControllerManager: false
+            kubeSchedulerAlerting: false
+            kubeSchedulerRecording: false
+            kubeProxy: false
+        prometheus:
+          service:
+            type: NodePort
+            nodePort: 30090
+          prometheusSpec:
+            # Pick up ServiceMonitors / PrometheusRules from every namespace.
+            serviceMonitorSelectorNilUsesHelmValues: false
+            podMonitorSelectorNilUsesHelmValues: false
+            ruleSelectorNilUsesHelmValues: false
+            probeSelectorNilUsesHelmValues: false
+            scrapeInterval: 15s
+            evaluationInterval: 15s
+            # SLO window is 7 days.
+            retention: 8d
+            resources:
+              requests: { cpu: 100m, memory: 512Mi }
+            storageSpec:
+              volumeClaimTemplate:
+                spec:
+                  accessModes: ["ReadWriteOnce"]
+                  resources:
+                    requests:
+                      storage: 5Gi
+        alertmanager:
+          service:
+            type: NodePort
+            nodePort: 30093
+        grafana:
+          admin:
+            existingSecret: grafana-admin
+            userKey: admin-user
+            passwordKey: admin-password
+          service:
+            type: NodePort
+            nodePort: 30030
+          sidecar:
+            dashboards:
+              enabled: true
+              label: grafana_dashboard
+              labelValue: "1"
+              searchNamespace: ALL
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      # The Prometheus Operator CRDs are too large for client-side apply.
+      - ServerSideApply=true

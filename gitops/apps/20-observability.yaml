@@ -1,0 +1,23 @@
+# Wave -1: SLO recording rules, burn-rate alerts and Grafana dashboard (EF-06..EF-08)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: observability
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  source:
+    repoURL: https://github.com/Rihemfathallah/gitops-self-healing-platform.git
+    targetRevision: main
+    path: gitops/observability
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

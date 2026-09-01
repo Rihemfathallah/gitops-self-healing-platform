@@ -1,0 +1,12 @@
+# Release of NeuralRAG currently desired in the cluster.
+#   image.tag     -> bumped by CI (.github/workflows/release.yml) after each build on main
+#   release.*     -> changed by scripts/experiments/ to simulate a bad release
+# A healthy release has every chaos value at its neutral setting.
+image:
+  tag: main
+release:
+  id: baseline
+  chaos:
+    errorRate: "0"
+    latencyMs: "0"
+    crashOnStart: "false"
