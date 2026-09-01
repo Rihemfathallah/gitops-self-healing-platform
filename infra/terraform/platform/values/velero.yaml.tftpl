@@ -1,0 +1,45 @@
+# Velero — backups to MinIO (outside the cluster), file-system backup of volumes (kopia)
+initContainers:
+  - name: velero-plugin-for-aws
+    image: ${plugin_image}
+    imagePullPolicy: IfNotPresent
+    volumeMounts:
+      - mountPath: /target
+        name: plugins
+
+snapshotsEnabled: false
+deployNodeAgent: true
+
+credentials:
+  useSecret: true
+  secretContents:
+    cloud: |
+      [default]
+      aws_access_key_id=${access_key}
+      aws_secret_access_key=${secret_key}
+
+configuration:
+  backupStorageLocation:
+    - name: default
+      provider: aws
+      bucket: ${bucket}
+      default: true
+      config:
+        region: minio
+        s3ForcePathStyle: "true"
+        s3Url: ${s3_url}
+  volumeSnapshotLocation: []
+
+schedules:
+  neuralrag:
+    disabled: false
+    schedule: "${backup_schedule}"
+    useOwnerReferencesInBackup: false
+    template:
+      ttl: 72h0m0s
+      storageLocation: default
+      includedNamespaces:
+        - neuralrag
+      # Volumes are copied file by file (kind has no CSI snapshots).
+      # Ollama's model cache is excluded by a pod annotation (re-pulled on restore).
+      defaultVolumesToFsBackup: true

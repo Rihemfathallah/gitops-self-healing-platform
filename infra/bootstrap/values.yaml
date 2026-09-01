@@ -1,0 +1,3 @@
+repoURL: https://github.com/Rihemfathallah/gitops-self-healing-platform.git
+revision: main
+path: gitops/apps
