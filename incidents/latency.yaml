@@ -1,0 +1,28 @@
+# Incident: 11 s of network delay between the backend and its dependencies.
+# Expected: requests exceed the 10 s threshold -> NeuralRAGLatencyBudgetFastBurn (page).
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: incident-latency
+  namespace: neuralrag
+  labels:
+    neuralrag/incident: latency
+spec:
+  action: delay
+  mode: all
+  selector:
+    namespaces: [neuralrag]
+    labelSelectors:
+      app.kubernetes.io/name: neuralrag-backend
+  delay:
+    latency: 11s
+    jitter: 0ms
+    correlation: "100"
+  direction: to
+  target:
+    mode: all
+    selector:
+      namespaces: [neuralrag]
+      labelSelectors:
+        app.kubernetes.io/name: neuralrag-ollama
+  duration: 15m
