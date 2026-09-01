@@ -1,0 +1,145 @@
+# promtool unit tests for gitops/observability/slo-rules.yaml
+# Run: make test-rules   (extracts the rules, then `promtool test rules`)
+rule_files:
+  - ../../build/slo-rules.rules.yaml
+
+evaluation_interval: 30s
+
+tests:
+  # 1 — Healthy traffic for 2 h: 1 req/s, 0.1 % errors, all requests fast.
+  #     No SLO alert may fire (this is the "0 false positive" property).
+  - interval: 30s
+    input_series:
+      - series: 'http_requests_total{job="neuralrag-backend", code="200"}'
+        values: '0+30x240'
+      - series: 'http_requests_total{job="neuralrag-backend", code="500"}'
+        values: '0+0.03x240'
+      - series: 'http_request_duration_seconds_bucket{job="neuralrag-backend", le="10.0"}'
+        values: '0+30x240'
+      - series: 'http_request_duration_seconds_count{job="neuralrag-backend"}'
+        values: '0+30x240'
+      - series: 'up{job="neuralrag-backend"}'
+        values: '1x240'
+    alert_rule_test:
+      - eval_time: 2h
+        alertname: NeuralRAGAvailabilityBudgetFastBurn
+        exp_alerts: []
+      - eval_time: 2h
+        alertname: NeuralRAGLatencyBudgetFastBurn
+        exp_alerts: []
+      - eval_time: 2h
+        alertname: NeuralRAGBackendDown
+        exp_alerts: []
+
+  # 2 — Dependency lost: after 1 h of healthy traffic, 50 % of requests fail.
+  #     The page alert must fire within ~10 minutes.
+  - interval: 30s
+    input_series:
+      - series: 'http_requests_total{job="neuralrag-backend", code="200"}'
+        values: '0+30x120 3600+15x40'
+      - series: 'http_requests_total{job="neuralrag-backend", code="500"}'
+        values: '0x120 0+15x40'
+      - series: 'up{job="neuralrag-backend"}'
+        values: '1x160'
+    alert_rule_test:
+      # 2 minutes into the incident: the 1 h window is still below 1.68 %.
+      - eval_time: 62m
+        alertname: NeuralRAGAvailabilityBudgetFastBurn
+        exp_alerts: []
+      - eval_time: 80m
+        alertname: NeuralRAGAvailabilityBudgetFastBurn
+        exp_alerts:
+          - exp_labels:
+              severity: page
+              team: neuralrag
+              slo: availability
+            exp_annotations:
+              summary: "NeuralRAG burns its availability error budget too fast"
+              description: "More than 1.68 % of requests failed over both the last 1h and the last 5m: at this rate 2 % of the 7-day budget is gone within the hour. Current ratio on the SLO dashboard."
+              runbook_url: "https://github.com/Rihemfathallah/gitops-self-healing-platform/blob/main/docs/runbook.md#availability-burn"
+    promql_expr_test:
+      - expr: neuralrag:sli_errors:ratio_rate5m
+        eval_time: 80m
+        exp_samples:
+          - labels: 'neuralrag:sli_errors:ratio_rate5m'
+            value: 0.5
+
+  # 3 — Latency incident: after 1 h, every request takes more than 10 s.
+  - interval: 30s
+    input_series:
+      - series: 'http_request_duration_seconds_bucket{job="neuralrag-backend", le="10.0"}'
+        values: '0+30x120 3600x40'
+      - series: 'http_request_duration_seconds_count{job="neuralrag-backend"}'
+        values: '0+30x160'
+      - series: 'http_requests_total{job="neuralrag-backend", code="200"}'
+        values: '0+30x160'
+      - series: 'up{job="neuralrag-backend"}'
+        values: '1x160'
+    alert_rule_test:
+      - eval_time: 80m
+        alertname: NeuralRAGLatencyBudgetFastBurn
+        exp_alerts:
+          - exp_labels:
+              severity: page
+              team: neuralrag
+              slo: latency
+            exp_annotations:
+              summary: "NeuralRAG burns its latency error budget too fast"
+              description: "More than 16.8 % of requests took over 10 s, over both the last 1h and the last 5m."
+              runbook_url: "https://github.com/Rihemfathallah/gitops-self-healing-platform/blob/main/docs/runbook.md#latency-burn"
+      - eval_time: 80m
+        alertname: NeuralRAGAvailabilityBudgetFastBurn
+        exp_alerts: []
+
+  # 4 — All backend pods gone: no target at all.
+  - interval: 30s
+    input_series:
+      - series: 'up{job="neuralrag-backend"}'
+        values: '1x10 stale'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: NeuralRAGBackendDown
+        exp_alerts: []
+      - eval_time: 9m
+        alertname: NeuralRAGBackendDown
+        exp_alerts:
+          - exp_labels:
+              severity: page
+              team: neuralrag
+              slo: availability
+            exp_annotations:
+              summary: "No NeuralRAG backend pod is serving"
+              description: "Prometheus scrapes no healthy backend target: the API is fully down."
+              runbook_url: "https://github.com/Rihemfathallah/gitops-self-healing-platform/blob/main/docs/runbook.md#backend-down"
+
+  # 5 — Rollout aborted by the canary analysis.
+  - interval: 30s
+    input_series:
+      - series: 'rollout_info{namespace="neuralrag", name="neuralrag-backend", phase="Degraded"}'
+        values: '0x4 1x4'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: NeuralRAGRolloutAborted
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              team: neuralrag
+              slo: release
+            exp_annotations:
+              summary: "A NeuralRAG release was rolled back automatically"
+              description: "The canary analysis failed; traffic is back on the last healthy version. Revert or fix the release in Git."
+              runbook_url: "https://github.com/Rihemfathallah/gitops-self-healing-platform/blob/main/docs/runbook.md#rollout-aborted"
+
+  # 6 — Budget arithmetic: 1 % errors over the window = budget overspent by 100 %.
+  - interval: 5m
+    input_series:
+      - series: 'http_requests_total{job="neuralrag-backend", code="200"}'
+        values: '0+99x300'
+      - series: 'http_requests_total{job="neuralrag-backend", code="500"}'
+        values: '0+1x300'
+    promql_expr_test:
+      - expr: neuralrag:slo_availability:error_budget_remaining
+        eval_time: 1d
+        exp_samples:
+          - labels: 'neuralrag:slo_availability:error_budget_remaining'
+            value: -1
