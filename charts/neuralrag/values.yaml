@@ -20,7 +20,7 @@ backend:
   nodePort: 30080
   logLevel: info
   # Chunks sent to the LLM per question (original default 5); fewer = shorter prompt.
-  topK: 3
+  topK: 2
   apiKeySecret: neuralrag-api   # created by Terraform, never in Git
   resources:
     requests: { cpu: 100m, memory: 600Mi }
@@ -48,7 +48,7 @@ slo:
   # Must be one of the histogram buckets of metrics/sli.py, written as the
   # Python client renders it ("10.0", not "10"). Keep in sync with
   # gitops/observability/slo-rules.yaml.
-  latencyThresholdLe: "10.0"
+  latencyThresholdLe: "30.0"
 
 chromadb:
   image: chromadb/chroma:0.5.0
@@ -61,7 +61,7 @@ ollama:
   image: ollama/ollama:0.9.0
   model: qwen2.5:0.5b
   # Cap the answer length: bounded output = bounded latency on CPU.
-  numPredict: 160
+  numPredict: 96
   storage: 3Gi
   resources:
     requests: { cpu: 500m, memory: 1Gi }
@@ -72,5 +72,6 @@ trafficGenerator:
   # 24 h false-positive measurement.
   enabled: true
   image: curlimages/curl:8.11.0
-  intervalSeconds: 2
-  timeoutSeconds: 60
+  # One question every ~15 s: enough to feed the SLIs, light enough for a CPU-only LLM.
+  intervalSeconds: 15
+  timeoutSeconds: 120

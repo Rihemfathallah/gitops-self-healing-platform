@@ -67,7 +67,7 @@ Décisions détaillées dans [`docs/adr/`](docs/adr/) :
 | SLO | SLI | Cible (7 j) | Alerte page | Alerte ticket |
 | --- | --- | --- | --- | --- |
 | Disponibilité | requêtes API non 5xx | 99,5 % | burn rate > 3,36 sur 1 h **et** 5 min | > 1,4 sur 6 h **et** 30 min |
-| Latence | requêtes API ≤ 10 s (p95 ≤ 10 s) | 95 % | idem | idem |
+| Latence | requêtes API ≤ 30 s (p95 ≤ 30 s, LLM sur CPU) | 95 % | idem | idem |
 
 Plus deux alertes symptômes : `NeuralRAGBackendDown` (aucune pod ne sert) et
 `NeuralRAGRolloutAborted` (une release vient d'être annulée). Règles :
@@ -99,7 +99,7 @@ make down        # supprime tout
 4. Sur GitHub → *Packages* → `neuralrag-backend` → *Package settings* → visibilité **Public**
    (le cluster tire l'image sans identifiants).
 5. `git pull`, puis `make up`, `make status` jusqu'à ce que tout soit *Healthy*, puis `make seed`.
-6. Mesure de base : `DURATION=10m make exp-slo`. Si plus de 5 % des requêtes dépassent 10 s
+6. Mesure de base : `DURATION=10m make exp-slo`. Si plus de 5 % des requêtes dépassent 30 s
    sur la machine, ajuster le seuil (une borne de `metrics/sli.py`, par ex. `15.0`) dans
    `gitops/observability/slo-rules.yaml`, `charts/neuralrag/values.yaml` (`slo.latencyThresholdLe`)
    et `tests/prometheus/`, ou réduire `ollama.numPredict`.

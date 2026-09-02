@@ -2,8 +2,8 @@
 # NeuralRAG SLOs (EF-06) and burn-rate alerts (EF-07)
 #
 #   SLO 1 — availability : 99.5 % of API requests are not 5xx, over 7 days
-#   SLO 2 — latency      : 95 % of API requests complete in <= 10 s
-#                          (i.e. p95 <= 10 s), over 7 days
+#   SLO 2 — latency      : 95 % of API requests complete in <= 30 s
+#                          (i.e. p95 <= 30 s), over 7 days
 #
 # Why 7 days and not 30: see docs/adr/0003-slo-window-and-burn-rates.md.
 # Burn-rate thresholds follow the multi-window, multi-burn-rate method of the
@@ -14,7 +14,8 @@
 #            (long window 6 h, short window 30 m)
 #
 # Error budgets: availability 1 - 0.995 = 0.005 ; latency 1 - 0.95 = 0.05
-# The latency threshold is the histogram bucket le="10.0" (metrics/sli.py).
+# The latency threshold is the histogram bucket le="30.0" (metrics/sli.py).
+# 30 s, not 10 s: measured baseline p95 was ~50 s for a CPU-only LLM (ADR 0003).
 # Tested by tests/prometheus/slo-rules.test.yaml (promtool test rules).
 # ─────────────────────────────────────────────────────────────────────
 apiVersion: monitoring.coreos.com/v1
@@ -47,29 +48,29 @@ spec:
             (sum(rate(http_requests_total{job="neuralrag-backend", code=~"5.."}[6h])) or vector(0))
             / sum(rate(http_requests_total{job="neuralrag-backend"}[6h]))
 
-        # ── Latency SLI: ratio of requests slower than 10 s ───────────
+        # ── Latency SLI: ratio of requests slower than 30 s ───────────
         - record: neuralrag:sli_slow:ratio_rate5m
           expr: |
             1 - (
-              sum(rate(http_request_duration_seconds_bucket{job="neuralrag-backend", le="10.0"}[5m]))
+              sum(rate(http_request_duration_seconds_bucket{job="neuralrag-backend", le="30.0"}[5m]))
               / sum(rate(http_request_duration_seconds_count{job="neuralrag-backend"}[5m]))
             )
         - record: neuralrag:sli_slow:ratio_rate30m
           expr: |
             1 - (
-              sum(rate(http_request_duration_seconds_bucket{job="neuralrag-backend", le="10.0"}[30m]))
+              sum(rate(http_request_duration_seconds_bucket{job="neuralrag-backend", le="30.0"}[30m]))
               / sum(rate(http_request_duration_seconds_count{job="neuralrag-backend"}[30m]))
             )
         - record: neuralrag:sli_slow:ratio_rate1h
           expr: |
             1 - (
-              sum(rate(http_request_duration_seconds_bucket{job="neuralrag-backend", le="10.0"}[1h]))
+              sum(rate(http_request_duration_seconds_bucket{job="neuralrag-backend", le="30.0"}[1h]))
               / sum(rate(http_request_duration_seconds_count{job="neuralrag-backend"}[1h]))
             )
         - record: neuralrag:sli_slow:ratio_rate6h
           expr: |
             1 - (
-              sum(rate(http_request_duration_seconds_bucket{job="neuralrag-backend", le="10.0"}[6h]))
+              sum(rate(http_request_duration_seconds_bucket{job="neuralrag-backend", le="30.0"}[6h]))
               / sum(rate(http_request_duration_seconds_count{job="neuralrag-backend"}[6h]))
             )
 
@@ -94,7 +95,7 @@ spec:
         - record: neuralrag:sli_slow:ratio_rate7d
           expr: |
             1 - (
-              sum(increase(http_request_duration_seconds_bucket{job="neuralrag-backend", le="10.0"}[7d]))
+              sum(increase(http_request_duration_seconds_bucket{job="neuralrag-backend", le="30.0"}[7d]))
               / sum(increase(http_request_duration_seconds_count{job="neuralrag-backend"}[7d]))
             )
         # Share of the 7-day error budget still available (1 = untouched, <0 = SLO missed)
@@ -149,7 +150,7 @@ spec:
             slo: latency
           annotations:
             summary: "NeuralRAG burns its latency error budget too fast"
-            description: "More than 16.8 % of requests took over 10 s, over both the last 1h and the last 5m."
+            description: "More than 16.8 % of requests took over 30 s, over both the last 1h and the last 5m."
             runbook_url: "https://github.com/Rihemfathallah/gitops-self-healing-platform/blob/main/docs/runbook.md#latency-burn"
         - alert: NeuralRAGLatencyBudgetSlowBurn
           expr: |
@@ -163,7 +164,7 @@ spec:
             slo: latency
           annotations:
             summary: "NeuralRAG latency error budget is eroding"
-            description: "More than 7 % of requests took over 10 s, over both the last 6h and the last 30m."
+            description: "More than 7 % of requests took over 30 s, over both the last 6h and the last 30m."
             runbook_url: "https://github.com/Rihemfathallah/gitops-self-healing-platform/blob/main/docs/runbook.md#latency-burn"
 
         # ── Symptom alerts the request-based SLIs cannot see ─────────

@@ -31,7 +31,8 @@ def main() -> None:
          "results/rollback/"),
         ("SLO tenus sous charge (k6, 30 min)",
          (f"disponibilité {slo['prometheus']['availability']:.3%} (cible 99,5 %) ; "
-          f"{slo['prometheus']['fast_ratio_le_10s']:.1%} des requêtes ≤ 10 s (cible 95 %)"
+          f"{slo['prometheus']['fast_ratio_under_threshold']:.1%} des requêtes ≤ "
+          f"{slo['prometheus']['latency_threshold_s']:g} s (cible 95 %)"
           + (" — tenus" if slo["passed"] else " — NON tenus"))
          if slo and slo["prometheus"]["availability"] is not None else NA, "results/slo/"),
         ("Incidents détectés par une alerte",
