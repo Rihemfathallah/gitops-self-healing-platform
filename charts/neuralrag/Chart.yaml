@@ -1,0 +1,6 @@
+apiVersion: v2
+name: neuralrag
+description: NeuralRAG (FastAPI + ChromaDB + Ollama) deployed with an Argo Rollouts canary guarded by SLO analysis.
+type: application
+version: 1.0.0
+appVersion: "1.0.0"

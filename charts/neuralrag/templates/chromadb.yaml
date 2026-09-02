@@ -1,0 +1,74 @@
+# ChromaDB — the only stateful component whose data must survive a disaster.
+# Its volume is copied by Velero (file-system backup) and restored by the DR script.
+apiVersion: v1
+kind: Service
+metadata:
+  name: neuralrag-chromadb
+  labels:
+    {{- include "neuralrag.labels" . | nindent 4 }}
+    app.kubernetes.io/name: neuralrag-chromadb
+spec:
+  selector:
+    app.kubernetes.io/name: neuralrag-chromadb
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: neuralrag-chromadb
+  labels:
+    {{- include "neuralrag.labels" . | nindent 4 }}
+    app.kubernetes.io/name: neuralrag-chromadb
+    neuralrag/dr: restore
+spec:
+  serviceName: neuralrag-chromadb
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: neuralrag-chromadb
+  template:
+    metadata:
+      labels:
+        {{- include "neuralrag.labels" . | nindent 8 }}
+        app.kubernetes.io/name: neuralrag-chromadb
+        neuralrag/dr: restore
+      annotations:
+        backup.velero.io/backup-volumes: data
+    spec:
+      containers:
+        - name: chromadb
+          image: {{ .Values.chromadb.image }}
+          ports:
+            - name: http
+              containerPort: 8000
+          env:
+            - name: IS_PERSISTENT
+              value: "TRUE"
+            - name: PERSIST_DIRECTORY
+              value: /chroma/chroma
+            - name: ANONYMIZED_TELEMETRY
+              value: "FALSE"
+            - name: ALLOW_RESET
+              value: "FALSE"
+          readinessProbe:
+            httpGet: { path: /api/v1/heartbeat, port: http }
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.chromadb.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /chroma/chroma
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        labels:
+          app.kubernetes.io/name: neuralrag-chromadb
+          neuralrag/dr: restore
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: {{ .Values.chromadb.storage }}

@@ -1,0 +1,45 @@
+{{- $sel := printf "namespace=\"%s\", pod=~\"neuralrag-backend-{{args.canary-hash}}-.*\"" .Release.Namespace -}}
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: neuralrag-canary
+  labels:
+    {{- include "neuralrag.labels" . | nindent 4 }}
+spec:
+  args:
+    - name: canary-hash
+  metrics:
+    # SLI 1 — availability of the canary pods only.
+    - name: canary-error-ratio
+      initialDelay: {{ .Values.analysis.initialDelay }}
+      interval: {{ .Values.analysis.interval }}
+      count: {{ .Values.analysis.count }}
+      failureLimit: {{ .Values.analysis.failureLimit }}
+      successCondition: result[0] <= {{ .Values.analysis.maxErrorRatio }}
+      provider:
+        prometheus:
+          address: {{ .Values.analysis.prometheusAddress }}
+          query: |
+            (
+              (sum(rate(http_requests_total{ {{ $sel }}, code=~"5.." }[1m])) or vector(0))
+              /
+              (sum(rate(http_requests_total{ {{ $sel }} }[1m])) > 0)
+            ) or vector(0)
+    # SLI 2 — share of canary requests slower than the latency SLO threshold.
+    - name: canary-slow-ratio
+      initialDelay: {{ .Values.analysis.initialDelay }}
+      interval: {{ .Values.analysis.interval }}
+      count: {{ .Values.analysis.count }}
+      failureLimit: {{ .Values.analysis.failureLimit }}
+      successCondition: result[0] <= {{ .Values.analysis.maxSlowRatio }}
+      provider:
+        prometheus:
+          address: {{ .Values.analysis.prometheusAddress }}
+          query: |
+            (
+              1 - (
+                sum(rate(http_request_duration_seconds_bucket{ {{ $sel }}, le="{{ .Values.slo.latencyThresholdLe }}" }[1m]))
+                /
+                (sum(rate(http_request_duration_seconds_count{ {{ $sel }} }[1m])) > 0)
+              )
+            ) or vector(0)

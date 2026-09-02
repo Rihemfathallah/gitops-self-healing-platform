@@ -1,0 +1,70 @@
+{{- if .Values.trafficGenerator.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: neuralrag-traffic-questions
+  labels:
+    {{- include "neuralrag.labels" . | nindent 4 }}
+data:
+  questions.txt: |
+    Qu'est-ce qu'un budget d'erreur ?
+    Comment fonctionne une alerte multi-fenêtres sur le burn rate ?
+    Que fait Argo CD dans une approche GitOps ?
+    Comment Argo Rollouts décide-t-il d'annuler un canary ?
+    Quelle est la différence entre RTO et RPO ?
+    Où sont stockées les sauvegardes Velero ?
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: neuralrag-traffic-generator
+  labels:
+    {{- include "neuralrag.labels" . | nindent 4 }}
+    app.kubernetes.io/name: neuralrag-traffic-generator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: neuralrag-traffic-generator
+  template:
+    metadata:
+      labels:
+        {{- include "neuralrag.labels" . | nindent 8 }}
+        app.kubernetes.io/name: neuralrag-traffic-generator
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 100
+      containers:
+        - name: generator
+          image: {{ .Values.trafficGenerator.image }}
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              while true; do
+                while IFS= read -r q; do
+                  [ -z "$q" ] && continue
+                  curl -s -o /dev/null -m {{ .Values.trafficGenerator.timeoutSeconds }} \
+                    -H "X-API-Key: ${API_KEY}" -H "Content-Type: application/json" \
+                    --data "{\"question\": \"${q}\"}" \
+                    http://neuralrag-backend:8000/api/query || true
+                  sleep {{ .Values.trafficGenerator.intervalSeconds }}
+                done < /config/questions.txt
+              done
+          env:
+            - name: API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.backend.apiKeySecret }}
+                  key: API_KEY
+          resources:
+            requests: { cpu: 10m, memory: 16Mi }
+            limits: { memory: 64Mi }
+          volumeMounts:
+            - name: questions
+              mountPath: /config
+      volumes:
+        - name: questions
+          configMap:
+            name: neuralrag-traffic-questions
+{{- end }}

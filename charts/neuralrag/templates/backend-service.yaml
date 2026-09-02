@@ -1,0 +1,33 @@
+# Basic canary without a traffic router: the Service selects stable AND canary
+# pods, so traffic is split in proportion to the number of pods.
+apiVersion: v1
+kind: Service
+metadata:
+  name: neuralrag-backend
+  labels:
+    {{- include "neuralrag.labels" . | nindent 4 }}
+    {{- include "neuralrag.backendSelector" . | nindent 4 }}
+spec:
+  type: NodePort
+  selector:
+    {{- include "neuralrag.backendSelector" . | nindent 4 }}
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http
+      nodePort: {{ .Values.backend.nodePort }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: neuralrag-backend
+  labels:
+    {{- include "neuralrag.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "neuralrag.backendSelector" . | nindent 6 }}
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
