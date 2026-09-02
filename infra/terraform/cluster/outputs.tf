@@ -10,17 +10,17 @@ output "kube_context" {
   value = kind_cluster.this.context_name
 }
 
-output "minio_endpoint" {
+output "s3_endpoint" {
   description = "S3 endpoint as seen from inside the cluster."
-  value       = "http://${docker_container.minio.name}:9000"
+  value       = "http://${docker_container.s3.name}:8333"
 }
 
-output "minio_user" {
-  value = local.minio_user
+output "s3_user" {
+  value = local.s3_user
 }
 
-output "minio_password" {
-  value     = random_password.minio.result
+output "s3_password" {
+  value     = random_password.s3.result
   sensitive = true
 }
 

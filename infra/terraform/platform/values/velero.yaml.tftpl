@@ -1,4 +1,4 @@
-# Velero — backups to MinIO (outside the cluster), file-system backup of volumes (kopia)
+# Velero — backups to SeaweedFS S3 (outside the cluster), file-system backup of volumes (kopia)
 initContainers:
   - name: velero-plugin-for-aws
     image: ${plugin_image}
@@ -25,9 +25,11 @@ configuration:
       bucket: ${bucket}
       default: true
       config:
-        region: minio
+        region: us-east-1
         s3ForcePathStyle: "true"
         s3Url: ${s3_url}
+        # The AWS SDK v2 adds CRC checksums that non-AWS S3 servers may reject.
+        checksumAlgorithm: ""
   volumeSnapshotLocation: []
 
 schedules:

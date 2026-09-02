@@ -22,16 +22,10 @@ variable "host_ports" {
   }
 }
 
-variable "minio_image" {
-  description = "MinIO image, pinned (backup target, lives outside the cluster on purpose)."
+variable "s3_image" {
+  description = "S3-compatible object store (SeaweedFS). Pin it to a version tag or digest after the first pull."
   type        = string
-  default     = "minio/minio:RELEASE.2025-09-07T16-13-09Z"
-}
-
-variable "minio_mc_image" {
-  description = "MinIO client image used once to create the bucket."
-  type        = string
-  default     = "minio/mc:RELEASE.2025-08-13T08-35-41Z"
+  default     = "chrislusf/seaweedfs:latest"
 }
 
 variable "velero_bucket" {

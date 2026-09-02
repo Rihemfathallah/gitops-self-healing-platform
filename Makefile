@@ -25,7 +25,7 @@ prereqs: ## check local tools
 up: prereqs cluster platform ## create cluster + Argo CD + Velero, then GitOps syncs the rest
 	@echo "Argo CD now syncs gitops/apps (≈10 min the first time). Follow with: make status"
 
-cluster: ## kind cluster + MinIO (Terraform)
+cluster: ## kind cluster + S3 store (Terraform)
 	terraform -chdir=$(TF_CLUSTER) init -input=false
 	terraform -chdir=$(TF_CLUSTER) apply -auto-approve -input=false
 
@@ -37,7 +37,7 @@ down: ## destroy everything, backups included
 	-terraform -chdir=$(TF_PLATFORM) destroy -auto-approve -input=false
 	terraform -chdir=$(TF_CLUSTER) destroy -auto-approve -input=false
 
-destroy-cluster: ## destroy only the cluster (backups in MinIO are kept)
+destroy-cluster: ## destroy only the cluster (backups in the S3 store are kept)
 	terraform -chdir=$(TF_CLUSTER) destroy -target=kind_cluster.this -auto-approve -input=false
 
 seed: ## index the sample documents once
