@@ -19,6 +19,11 @@ backend:
   replicas: 2
   nodePort: 30080
   logLevel: info
+  # Server keep-alive. Must exceed the idle time of every client (k6 waits 5 s
+  # between requests): with uvicorn's default 5 s, the server sometimes closed a
+  # connection just as k6 reused it, and k6 saw "EOF" that the server never
+  # counted (k6 baseline, 3/31 requests). See ADR 0003, limits.
+  keepAliveSeconds: 75
   # Chunks sent to the LLM per question (original default 5); fewer = shorter prompt.
   topK: 2
   apiKeySecret: neuralrag-api   # created by Terraform, never in Git
