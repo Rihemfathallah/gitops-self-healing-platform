@@ -5,8 +5,8 @@
 image:
   tag: sha-ea38685
 release:
-  id: baseline
+  id: bad-errors-4
   chaos:
-    errorRate: "0"
+    errorRate: "0.5"
     latencyMs: "0"
     crashOnStart: "false"
