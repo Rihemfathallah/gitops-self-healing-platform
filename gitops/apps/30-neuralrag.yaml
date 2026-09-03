@@ -1,0 +1,31 @@
+# Wave 0: the application itself, deployed only from Git (EF-04)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: neuralrag
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: neuralrag
+  source:
+    repoURL: https://github.com/Rihemfathallah/gitops-self-healing-platform.git
+    targetRevision: main
+    path: charts/neuralrag
+    helm:
+      valueFiles:
+        - values.yaml
+        # Release-specific values: image tag (bumped by CI) and injected faults
+        # (set by scripts/experiments). Argo CD layers it over values.yaml.
+        - ../../gitops/releases/neuralrag.yaml
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
