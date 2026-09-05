@@ -13,10 +13,10 @@ Alertmanager · Grafana · Velero · SeaweedFS (S3) · Chaos Mesh · k6 · GitHu
 <!-- RESULTS:START -->
 | Mesure | Résultat | Source |
 | --- | --- | --- |
-| Temps de rollback (détection → version saine) | _pas encore mesuré_ | [`results/rollback/`](results/rollback/) |
-| Temps total (commit fautif → version saine) | _pas encore mesuré_ | [`results/rollback/`](results/rollback/) |
-| SLO tenus sous charge (k6, 30 min) | _pas encore mesuré_ | [`results/slo/`](results/slo/) |
-| Incidents détectés par une alerte | _pas encore mesuré_ | [`results/alerts/`](results/alerts/) |
+| Temps de rollback (détection → version saine) | 7/10 rollbacks réussis ; médiane 6.7 s, max 11.9 s | [`results/rollback/`](results/rollback/) |
+| Temps total (commit fautif → version saine) | médiane 192.6 s, max 550.5 s | [`results/rollback/`](results/rollback/) |
+| SLO tenus sous charge (k6, 30 min) | disponibilité 100.000% (cible 99,5 %) ; 100.0% des requêtes ≤ 30 s (cible 95 %) — tenus | [`results/slo/`](results/slo/) |
+| Incidents détectés par une alerte | 1/3 ; délai médiane 100.0 s, max 100.0 s | [`results/alerts/`](results/alerts/) |
 | Fausses alertes sur trafic normal | _pas encore mesuré_ | [`results/alerts/`](results/alerts/) |
 | RTO (cluster détruit → service rétabli) | _pas encore mesuré_ | [`results/dr/`](results/dr/) |
 | RPO (données perdues) | _pas encore mesuré_ | [`results/dr/`](results/dr/) |

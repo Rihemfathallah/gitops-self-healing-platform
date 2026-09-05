@@ -1,0 +1,39 @@
+{
+  "generated_at": "2026-11-21T22:34:37+00:00",
+  "generated_by": "scripts/experiments",
+  "incidents": 3,
+  "detected": 1,
+  "all_detected": false,
+  "time_to_alert": {
+    "n": 1,
+    "median_s": 100.0,
+    "max_s": 100.0,
+    "min_s": 100.0
+  },
+  "by_incident": {
+    "dependency-loss": {
+      "runs": 1,
+      "detected": 0,
+      "time_to_alert": {
+        "n": 0
+      }
+    },
+    "latency": {
+      "runs": 1,
+      "detected": 0,
+      "time_to_alert": {
+        "n": 0
+      }
+    },
+    "pod-failure": {
+      "runs": 1,
+      "detected": 1,
+      "time_to_alert": {
+        "n": 1,
+        "median_s": 100.0,
+        "max_s": 100.0,
+        "min_s": 100.0
+      }
+    }
+  }
+}
