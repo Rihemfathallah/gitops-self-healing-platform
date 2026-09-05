@@ -3,7 +3,7 @@
 #   release.*     -> changed by scripts/experiments/ to simulate a bad release
 # A healthy release has every chaos value at its neutral setting.
 image:
-  tag: sha-ea38685
+  tag: sha-b59202b
 release:
   id: baseline
   chaos:
