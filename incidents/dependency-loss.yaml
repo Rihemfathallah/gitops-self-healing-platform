@@ -1,5 +1,7 @@
 # Incident: the backend loses its vector database (network partition backend -> ChromaDB).
-# Expected: /api/query returns 500 -> NeuralRAGAvailabilityBudgetFastBurn (page).
+# Expected: /api/query returns 503 within ~10 s -> NeuralRAGAvailabilityBudgetFastBurn (page).
+# Before the backend fix, queries hung in a ChromaDB call without timeout, the kubelet
+# killed the pods and no failure was ever counted (ADR 0003).
 apiVersion: chaos-mesh.org/v1alpha1
 kind: NetworkChaos
 metadata:

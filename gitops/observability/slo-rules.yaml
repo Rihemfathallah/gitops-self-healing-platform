@@ -181,6 +181,21 @@ spec:
             summary: "No NeuralRAG backend pod is serving"
             description: "Prometheus scrapes no healthy backend target: the API is fully down."
             runbook_url: "https://github.com/Rihemfathallah/gitops-self-healing-platform/blob/main/docs/runbook.md#backend-down"
+        # Pods killed and restarted in a loop: the requests they held die with them and
+        # are never counted, so the SLIs stay green. That is how the first
+        # dependency-loss incident went unseen (ADR 0003, retour d'expérience).
+        - alert: NeuralRAGBackendRestarting
+          expr: |
+            sum(increase(kube_pod_container_status_restarts_total{namespace="neuralrag", container="backend"}[15m])) > 2
+          for: 0m
+          labels:
+            severity: ticket
+            team: neuralrag
+            slo: availability
+          annotations:
+            summary: "NeuralRAG backend containers keep restarting"
+            description: "More than 2 backend container restarts in 15 min (liveness kills, crashes, OOM). Requests in flight are lost and invisible to the SLIs."
+            runbook_url: "https://github.com/Rihemfathallah/gitops-self-healing-platform/blob/main/docs/runbook.md#backend-restarting"
         - alert: NeuralRAGRolloutAborted
           expr: |
             max(rollout_info{namespace="neuralrag", name="neuralrag-backend", phase="Degraded"}) == 1

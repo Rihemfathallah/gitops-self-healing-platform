@@ -58,8 +58,8 @@ secrets: ## API key and Grafana password (local only)
 # ── Tests (also run in CI) ───────────────────────────────────────────
 test: test-app test-rules ## all local tests
 
-test-app: ## unit tests of the SLI and chaos middlewares (light deps)
-	cd app/backend && $(PY) -m pytest -q tests/test_sli_chaos.py
+test-app: ## unit tests: SLI and chaos middlewares, dependency failures (light deps)
+	cd app/backend && $(PY) -m pytest -q tests/test_sli_chaos.py tests/test_dependency_failure.py
 
 test-rules: ## promtool: rule syntax + alert unit tests
 	@mkdir -p build

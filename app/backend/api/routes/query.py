@@ -5,35 +5,68 @@ POST /api/query — main RAG question-answering endpoint.
 Receives a question, runs the RAG pipeline, returns answer + source chunks.
 """
 
+import asyncio
 import logging
+import threading
 import time
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from api.auth import verify_api_key
+from config import settings
 from rag.engine import RAGEngine
+from rag.errors import DependencyUnavailable
 from metrics.prometheus import REQUEST_COUNT, REQUEST_LATENCY, RAG_QUERY_DURATION
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Query"])
 
 _engine: RAGEngine | None = None
+_engine_lock = threading.Lock()
 
 
 def get_engine() -> RAGEngine:
-    """Return or lazily initialise the RAG engine singleton."""
+    """Return or lazily initialise the RAG engine singleton (blocking, thread-safe)."""
     global _engine
-    if _engine is None:
-        _engine = RAGEngine()
+    with _engine_lock:
+        if _engine is None:
+            _engine = RAGEngine()
     return _engine
+
+
+async def _engine_for_request() -> RAGEngine:
+    """Get the engine without blocking the event loop.
+
+    The first call loads the embedding model and connects to ChromaDB (retries for
+    up to ~100 s when ChromaDB is down). Done inline, it froze the event loop, so
+    /health stopped answering and the kubelet restarted the pod.
+    """
+    try:
+        return await asyncio.wait_for(asyncio.to_thread(get_engine), timeout=settings.engine_init_timeout_s)
+    except asyncio.TimeoutError as exc:
+        raise DependencyUnavailable("rag-engine", "initialisation still running") from exc
+    except DependencyUnavailable:
+        raise
+    except Exception as exc:
+        # Retriever() gives up when ChromaDB stays unreachable.
+        raise DependencyUnavailable("chromadb", str(exc)) from exc
 
 
 class QueryRequest(BaseModel):
     """Payload sent by the frontend for a RAG query."""
     question: str = Field(..., min_length=1, max_length=2000)
     department: str | None = Field(default=None, description="Department to scope the search")
+
+    @field_validator("question")
+    @classmethod
+    def question_not_blank(cls, value: str) -> str:
+        # Rejected here (422) rather than in the engine: a blank question must not
+        # trigger the engine's lazy start, nor count as a server error.
+        if not value.strip():
+            raise ValueError("question must not be blank")
+        return value
 
 
 class SourceChunk(BaseModel):
@@ -69,7 +102,7 @@ async def query(request: QueryRequest, _key: str = Depends(verify_api_key)) -> Q
     )
 
     try:
-        engine = get_engine()
+        engine = await _engine_for_request()
 
         # Time the RAG pipeline separately from total HTTP duration
         rag_start = time.perf_counter()
@@ -85,6 +118,12 @@ async def query(request: QueryRequest, _key: str = Depends(verify_api_key)) -> Q
         # Warn if no chunks were retrieved — documents may not be indexed
         if not sources:
             logger.warning("query returned no source chunks — documents may not be indexed yet")
+
+    except DependencyUnavailable as exc:
+        # A failed dependency must surface as a fast 5xx, counted by the availability SLI.
+        logger.error("dependency unavailable: %s", exc)
+        REQUEST_COUNT.labels(method="POST", endpoint="/api/query", status="503").inc()
+        raise HTTPException(status_code=503, detail=f"Dependency unavailable: {exc.dependency}") from exc
 
     except Exception as exc:
         logger.exception("RAG engine error: %s", exc)

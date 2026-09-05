@@ -18,7 +18,7 @@ from prometheus_client import make_asgi_app
 from config import settings
 from api.routes import health, index, query, upload
 from chaos import ChaosMiddleware, crash_if_requested
-from metrics.sli import SLIMetricsMiddleware
+from metrics.sli import SLIMetricsMiddleware, preinitialize
 from rag.indexer import Indexer
 
 # JSON structured logging — parseable by Promtail → Loki
@@ -123,6 +123,9 @@ def create_app() -> FastAPI:
     app.include_router(query.router, prefix="/api")
     app.include_router(index.router, prefix="/api")
     app.include_router(upload.router, prefix="/api")
+
+    # SLI series exist at 0 from startup, so rate() sees the very first request.
+    preinitialize(app)
 
     # Mount Prometheus metrics — scraped by Prometheus every 15s
     metrics_app = make_asgi_app()

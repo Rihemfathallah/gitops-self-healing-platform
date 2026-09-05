@@ -100,3 +100,25 @@ def test_crash_on_start(monkeypatch):
     importlib.reload(chaos)
     with pytest.raises(SystemExit):
         chaos.crash_if_requested()
+
+
+def test_preinitialized_series_start_at_zero():
+    # rate() ignores the first value of a series: a series born at 1 hides its first
+    # request. Pre-created at 0, the first request of a canary is visible (ADR 0002).
+    from fastapi import FastAPI
+    from metrics.sli import preinitialize
+
+    app = FastAPI()
+
+    @app.post("/api/preinit-probe")
+    async def probe():
+        return {}
+
+    preinitialize(app)
+    for code in ("200", "500", "503"):
+        labels = {"method": "POST", "route": "/api/preinit-probe", "code": code}
+        assert REGISTRY.get_sample_value("http_requests_total", labels) == 0.0
+    labels = {"method": "POST", "route": "/api/preinit-probe"}
+    assert REGISTRY.get_sample_value("http_request_duration_seconds_count", labels) == 0.0
+    assert REGISTRY.get_sample_value(
+        "http_requests_total", {"method": "POST", "route": "unmatched", "code": "500"}) is not None

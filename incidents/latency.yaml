@@ -1,5 +1,17 @@
-# Incident: 20 s of network delay between the backend and its dependencies.
+# Incident: 25 s of network delay on what Ollama sends to the backend.
 # Expected: requests exceed the 30 s threshold -> NeuralRAGLatencyBudgetFastBurn (page).
+#
+# The delay is set on Ollama's side, towards the backend pods. The first version
+# (selector backend, target Ollama) delayed nothing: tc/netem matches the target's
+# pod IP, but the backend calls Ollama through its Service, and the ClusterIP is
+# only translated to the pod IP outside the backend's network namespace.
+# Measured: 0.01 s through the Service vs 40.7 s to the pod IP (ADR 0005).
+# Replies from Ollama are addressed to the backend's real pod IP, so they match.
+# No target at all is not an option either: netem then also delays ARP replies
+# ("No route to host").
+#
+# 25 s: a new connection waits twice (SYN-ACK + response), so a request takes
+# ~50 s + generation, above 30 s with margin and below the 120 s client timeouts.
 apiVersion: chaos-mesh.org/v1alpha1
 kind: NetworkChaos
 metadata:
@@ -13,9 +25,9 @@ spec:
   selector:
     namespaces: [neuralrag]
     labelSelectors:
-      app.kubernetes.io/name: neuralrag-backend
+      app.kubernetes.io/name: neuralrag-ollama
   delay:
-    latency: 20s
+    latency: 25s
     jitter: 0ms
     correlation: "100"
   direction: to
@@ -24,5 +36,8 @@ spec:
     selector:
       namespaces: [neuralrag]
       labelSelectors:
-        app.kubernetes.io/name: neuralrag-ollama
-  duration: 15m
+        app.kubernetes.io/name: neuralrag-backend
+  # Longer than the time the 1 h window needs to cross 16.8 % at constant traffic
+  # (~10 min, +1 min "for", + completion of in-flight requests). The script removes
+  # the chaos as soon as the alert fires.
+  duration: 20m

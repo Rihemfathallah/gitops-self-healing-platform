@@ -35,6 +35,29 @@ CHROMA_CONNECT_RETRIES = 10
 CHROMA_CONNECT_DELAY = 5  # seconds between retries
 
 
+def _apply_http_timeout(client: object, timeout: float) -> None:
+    """Give every HTTP call of a chromadb client a socket timeout.
+
+    chromadb 0.5 sends its requests through a `requests.Session` without any
+    timeout: when ChromaDB stops answering (network partition), a query blocks
+    for minutes. The session is private API, hence the defensive lookup; the
+    chromadb version is pinned in requirements.txt.
+    """
+    server = getattr(client, "_server", client)
+    session = getattr(server, "_session", None)
+    if session is None or getattr(session, "_neuralrag_timeout", None) is not None:
+        return
+    send = session.request
+
+    def request(method, url, **kwargs):
+        if kwargs.get("timeout") is None:
+            kwargs["timeout"] = timeout
+        return send(method, url, **kwargs)
+
+    session.request = request
+    session._neuralrag_timeout = timeout
+
+
 @dataclass
 class RetrievedChunk:
     """A single search result returned from ChromaDB."""
@@ -74,6 +97,7 @@ class Retriever:
             tenant=CHROMA_TENANT,
             database=CHROMA_DATABASE,
         )
+        _apply_http_timeout(self._client, settings.chroma_timeout_s)
 
         # ── Get or create the collection with cosine distance ─────────
         self._collection = self._client.get_or_create_collection(
@@ -93,6 +117,7 @@ class Retriever:
                     host=settings.chroma_host,
                     port=int(settings.chroma_port),
                 )
+                _apply_http_timeout(client, settings.chroma_timeout_s)
                 client.heartbeat()  # Verify the server is actually reachable
                 logger.info("retriever: ChromaDB is reachable (attempt %d)", attempt)
                 return client
@@ -122,6 +147,7 @@ class Retriever:
                     chroma_server_http_port=int(settings.chroma_port),
                 )
             )
+            _apply_http_timeout(admin, settings.chroma_timeout_s)
             existing_tenants = [t.name for t in admin.list_tenants()]
             if CHROMA_TENANT not in existing_tenants:
                 logger.info("retriever: creating tenant '%s'", CHROMA_TENANT)

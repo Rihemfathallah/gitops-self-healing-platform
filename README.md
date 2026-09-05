@@ -13,10 +13,10 @@ Alertmanager · Grafana · Velero · SeaweedFS (S3) · Chaos Mesh · k6 · GitHu
 <!-- RESULTS:START -->
 | Mesure | Résultat | Source |
 | --- | --- | --- |
-| Temps de rollback (détection → version saine) | 7/10 rollbacks réussis ; médiane 6.7 s, max 11.9 s | [`results/rollback/`](results/rollback/) |
-| Temps total (commit fautif → version saine) | médiane 192.6 s, max 550.5 s | [`results/rollback/`](results/rollback/) |
+| Temps de rollback (détection → version saine) | _pas encore mesuré_ | [`results/rollback/`](results/rollback/) |
+| Temps total (commit fautif → version saine) | _pas encore mesuré_ | [`results/rollback/`](results/rollback/) |
 | SLO tenus sous charge (k6, 30 min) | disponibilité 100.000% (cible 99,5 %) ; 100.0% des requêtes ≤ 30 s (cible 95 %) — tenus | [`results/slo/`](results/slo/) |
-| Incidents détectés par une alerte | 1/3 ; délai médiane 100.0 s, max 100.0 s | [`results/alerts/`](results/alerts/) |
+| Incidents détectés par une alerte | _pas encore mesuré_ | [`results/alerts/`](results/alerts/) |
 | Fausses alertes sur trafic normal | _pas encore mesuré_ | [`results/alerts/`](results/alerts/) |
 | RTO (cluster détruit → service rétabli) | _pas encore mesuré_ | [`results/dr/`](results/dr/) |
 | RPO (données perdues) | _pas encore mesuré_ | [`results/dr/`](results/dr/) |
@@ -69,8 +69,9 @@ Décisions détaillées dans [`docs/adr/`](docs/adr/) :
 | Disponibilité | requêtes API non 5xx | 99,5 % | burn rate > 3,36 sur 1 h **et** 5 min | > 1,4 sur 6 h **et** 30 min |
 | Latence | requêtes API ≤ 30 s (p95 ≤ 30 s, LLM sur CPU) | 95 % | idem | idem |
 
-Plus deux alertes symptômes : `NeuralRAGBackendDown` (aucune pod ne sert) et
-`NeuralRAGRolloutAborted` (une release vient d'être annulée). Règles :
+Plus trois alertes symptômes : `NeuralRAGBackendDown` (aucune pod ne sert),
+`NeuralRAGBackendRestarting` (conteneurs redémarrés en boucle, requêtes perdues invisibles aux
+SLI) et `NeuralRAGRolloutAborted` (une release vient d'être annulée). Règles :
 [`gitops/observability/slo-rules.yaml`](gitops/observability/slo-rules.yaml), testées par
 `promtool` ([`tests/prometheus/`](tests/prometheus/)). Que faire pour chaque alerte :
 [`docs/runbook.md`](docs/runbook.md).

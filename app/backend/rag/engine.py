@@ -7,6 +7,7 @@ Wires together Embedder → Retriever → Generator.
 This is the only RAG class that route handlers talk to directly.
 """
 
+import asyncio
 import logging
 import time
 from dataclasses import dataclass, field
@@ -15,6 +16,8 @@ from typing import List
 from rag.retriever import Retriever, RetrievedChunk
 from rag.generator import Generator
 from rag.embedder import Embedder
+from rag.errors import DependencyUnavailable
+from config import settings
 from metrics.prometheus import RAG_QUERY_DURATION, RAG_ERRORS
 from preprocessing.pdf_to_structured import match_ue_from_query
 
@@ -63,8 +66,9 @@ class RAGEngine:
             RAGResult: Generated answer and the source chunks used.
 
         Raises:
-            ValueError:   If question is empty or too long.
-            RuntimeError: If any pipeline step fails.
+            ValueError:            If question is empty or too long.
+            DependencyUnavailable: If ChromaDB or Ollama fails or is too slow.
+            RuntimeError:          If the embedding step fails.
         """
         if not question.strip():
             raise ValueError("question must not be empty")
@@ -73,30 +77,21 @@ class RAGEngine:
 
         start = time.perf_counter()
 
-        # ── Step 1: Embed ─────────────────────────────────────────────
-        logger.info("engine.query: embedding question")
+        # ── Steps 1-2: Embed + Retrieve ───────────────────────────────
+        # Both calls are blocking (torch, chromadb over requests). They run in a
+        # worker thread with a wall-clock budget: a ChromaDB that stops answering
+        # must neither freeze the event loop (probes time out, kubelet kills the
+        # pod, the request is never counted) nor hold the client indefinitely.
         try:
-            query_vector = self.embedder.embed_one(question)
-        except Exception as exc:
-            RAG_ERRORS.labels(component="embedder").inc()
-            raise RuntimeError("embedding step failed") from exc
-
-        # ── Step 1b: Detect UE code in query ───────────────────────────
-        ue_code = match_ue_from_query(question)
-        if ue_code:
-            logger.info("engine.query: detected UE code %s in query", ue_code)
-
-        # ── Step 2: Retrieve ──────────────────────────────────────────
-        logger.info("engine.query: retrieving chunks (dept=%s, ue=%s)", department or "all", ue_code or "none")
-        try:
-            chunks = self.retriever.retrieve(
-                query_vector=query_vector,
-                department=department,
-                ue_code=ue_code,
+            chunks = await asyncio.wait_for(
+                asyncio.to_thread(self._embed_and_retrieve, question, department),
+                timeout=settings.retrieval_timeout_s,
             )
-        except Exception as exc:
+        except asyncio.TimeoutError as exc:
             RAG_ERRORS.labels(component="retriever").inc()
-            raise RuntimeError("retrieval step failed") from exc
+            raise DependencyUnavailable(
+                "chromadb", f"no answer within {settings.retrieval_timeout_s:.0f} s"
+            ) from exc
 
         # ── Step 3: Generate ──────────────────────────────────────────
         logger.info("engine.query: generating answer")
@@ -104,7 +99,7 @@ class RAGEngine:
             answer = await self.generator.generate(question=question, chunks=chunks)
         except Exception as exc:
             RAG_ERRORS.labels(component="generator").inc()
-            raise RuntimeError("generation step failed") from exc
+            raise DependencyUnavailable("ollama", str(exc)) from exc
 
         # Record total RAG pipeline duration
         RAG_QUERY_DURATION.observe(time.perf_counter() - start)
@@ -116,6 +111,30 @@ class RAGEngine:
         )
 
         return RAGResult(answer=answer, chunks=chunks)
+
+    def _embed_and_retrieve(self, question: str, department: str | None) -> List[RetrievedChunk]:
+        """Blocking part of the pipeline; runs in a worker thread (see query())."""
+        logger.info("engine.query: embedding question")
+        try:
+            query_vector = self.embedder.embed_one(question)
+        except Exception as exc:
+            RAG_ERRORS.labels(component="embedder").inc()
+            raise RuntimeError("embedding step failed") from exc
+
+        ue_code = match_ue_from_query(question)
+        if ue_code:
+            logger.info("engine.query: detected UE code %s in query", ue_code)
+
+        logger.info("engine.query: retrieving chunks (dept=%s, ue=%s)", department or "all", ue_code or "none")
+        try:
+            return self.retriever.retrieve(
+                query_vector=query_vector,
+                department=department,
+                ue_code=ue_code,
+            )
+        except Exception as exc:
+            RAG_ERRORS.labels(component="retriever").inc()
+            raise DependencyUnavailable("chromadb", str(exc)) from exc
 
     async def is_ready(self) -> bool:
         """

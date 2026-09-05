@@ -15,6 +15,11 @@ user traffic and would inflate availability.
 
 It also exposes `neuralrag_build_info{version}` so dashboards can show which
 release served which traffic.
+
+Series are pre-created at 0 for the API routes (`preinitialize`): Prometheus
+`rate()` ignores the first value of a series, so a series born at 1 hides its
+first request. On a canary that serves one request a minute, that hid the only
+slow answer the analysis could see (ADR 0002, retour d'expérience).
 """
 
 import os
@@ -48,6 +53,27 @@ BUILD_INFO = Gauge(
     ["version"],
 )
 BUILD_INFO.labels(version=os.getenv("APP_VERSION", "dev")).set(1)
+
+
+# Codes pre-created for every API route: success, unhandled error, dependency down.
+PREINIT_CODES = ("200", "500", "503")
+
+
+def preinitialize(app) -> None:
+    """Create every API series at 0 before the first request (see module docstring).
+
+    Covers each `/api/*` route of the app, plus the "unmatched" route used when the
+    chaos middleware answers before routing.
+    """
+    pairs = {("GET", "unmatched"), ("POST", "unmatched")}
+    for route in getattr(app, "routes", []):
+        path = getattr(route, "path", "")
+        if path.startswith("/api/"):
+            pairs |= {(m, path) for m in (getattr(route, "methods", None) or ()) if m != "HEAD"}
+    for method, route in pairs:
+        HTTP_DURATION.labels(method=method, route=route)
+        for code in PREINIT_CODES:
+            HTTP_REQUESTS.labels(method=method, route=route, code=code)
 
 
 def _route_template(scope: Scope) -> str:

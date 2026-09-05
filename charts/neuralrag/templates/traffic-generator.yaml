@@ -44,10 +44,13 @@ spec:
               while true; do
                 while IFS= read -r q; do
                   [ -z "$q" ] && continue
+                  # In the background: the next question leaves on time even if
+                  # this one is slow (open loop, like independent users). At most
+                  # timeoutSeconds / intervalSeconds requests are in flight.
                   curl -s -o /dev/null -m {{ .Values.trafficGenerator.timeoutSeconds }} \
                     -H "X-API-Key: ${API_KEY}" -H "Content-Type: application/json" \
                     --data "{\"question\": \"${q}\"}" \
-                    http://neuralrag-backend:8000/api/query || true
+                    http://neuralrag-backend:8000/api/query &
                   sleep {{ .Values.trafficGenerator.intervalSeconds }}
                 done < /config/questions.txt
               done

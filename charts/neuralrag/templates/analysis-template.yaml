@@ -13,7 +13,9 @@ spec:
     - name: canary-error-ratio
       initialDelay: {{ .Values.analysis.initialDelay }}
       interval: {{ .Values.analysis.interval }}
-      count: {{ .Values.analysis.count }}
+      {{- with .Values.analysis.count }}
+      count: {{ . }}
+      {{- end }}
       failureLimit: {{ .Values.analysis.failureLimit }}
       successCondition: result[0] <= {{ .Values.analysis.maxErrorRatio }}
       provider:
@@ -29,7 +31,9 @@ spec:
     - name: canary-slow-ratio
       initialDelay: {{ .Values.analysis.initialDelay }}
       interval: {{ .Values.analysis.interval }}
-      count: {{ .Values.analysis.count }}
+      {{- with .Values.analysis.count }}
+      count: {{ . }}
+      {{- end }}
       failureLimit: {{ .Values.analysis.failureLimit }}
       successCondition: result[0] <= {{ .Values.analysis.maxSlowRatio }}
       provider:
@@ -43,3 +47,19 @@ spec:
                 (sum(rate(http_request_duration_seconds_count{ {{ $sel }} }[{{ .Values.analysis.window }}])) > 0)
               )
             ) or vector(0)
+    # Signal 3 — restarts of the canary pods. A crash-looping canary serves no
+    # request, so both SLIs above stay at "no data" (= success); without this metric
+    # only progressDeadlineAbort caught it, after ~9 min (ADR 0002).
+    - name: canary-restarts
+      initialDelay: {{ .Values.analysis.initialDelay }}
+      interval: {{ .Values.analysis.interval }}
+      {{- with .Values.analysis.count }}
+      count: {{ . }}
+      {{- end }}
+      failureLimit: {{ .Values.analysis.failureLimit }}
+      successCondition: result[0] <= {{ .Values.analysis.maxCanaryRestarts }}
+      provider:
+        prometheus:
+          address: {{ .Values.analysis.prometheusAddress }}
+          query: |
+            sum(kube_pod_container_status_restarts_total{ {{ $sel }}, container="backend" }) or vector(0)

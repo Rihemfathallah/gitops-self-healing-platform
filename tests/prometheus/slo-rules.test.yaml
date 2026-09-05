@@ -30,6 +30,9 @@ tests:
       - eval_time: 2h
         alertname: NeuralRAGBackendDown
         exp_alerts: []
+      - eval_time: 2h
+        alertname: NeuralRAGBackendRestarting
+        exp_alerts: []
 
   # 2 — Dependency lost: after 1 h of healthy traffic, 50 % of requests fail.
   #     The page alert must fire within ~10 minutes.
@@ -130,7 +133,31 @@ tests:
               description: "The canary analysis failed; traffic is back on the last healthy version. Revert or fix the release in Git."
               runbook_url: "https://github.com/Rihemfathallah/gitops-self-healing-platform/blob/main/docs/runbook.md#rollout-aborted"
 
-  # 6 — Budget arithmetic: 1 % errors over the window = budget overspent by 100 %.
+  # 6 — Backend restarting in a loop (liveness kills while a dependency hangs).
+  #     One isolated restart is tolerated; repeated restarts open a ticket.
+  - interval: 30s
+    input_series:
+      - series: 'kube_pod_container_status_restarts_total{namespace="neuralrag", container="backend", pod="neuralrag-backend-a-1"}'
+        values: '0x10 1x50'
+      - series: 'kube_pod_container_status_restarts_total{namespace="neuralrag", container="backend", pod="neuralrag-backend-a-2"}'
+        values: '0x30 1x2 2x2 3x2 4x2 5x12'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: NeuralRAGBackendRestarting
+        exp_alerts: []
+      - eval_time: 20m
+        alertname: NeuralRAGBackendRestarting
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              team: neuralrag
+              slo: availability
+            exp_annotations:
+              summary: "NeuralRAG backend containers keep restarting"
+              description: "More than 2 backend container restarts in 15 min (liveness kills, crashes, OOM). Requests in flight are lost and invisible to the SLIs."
+              runbook_url: "https://github.com/Rihemfathallah/gitops-self-healing-platform/blob/main/docs/runbook.md#backend-restarting"
+
+  # 7 — Budget arithmetic: 1 % errors over the window = budget overspent by 100 %.
   - interval: 5m
     input_series:
       - series: 'http_requests_total{job="neuralrag-backend", code="200"}'

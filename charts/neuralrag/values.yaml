@@ -34,14 +34,21 @@ backend:
 rollout:
   # Basic canary: with 2 replicas, 50 % = 1 canary pod + 1 stable pod.
   canaryWeight: 50
-  pauseDuration: 4m
-  # A release whose pods never become ready (crash loop) is aborted after this.
+  # Observation time of the canary. The background analysis only runs while the
+  # rollout is not finished: 4 min was too short to see two slow answers of a
+  # canary that gets ~1 request a minute, each taking 50+ s (ADR 0002).
+  pauseDuration: 6m
+  # Backstop for a release whose pods never become ready; the canary-restarts
+  # metric of the analysis normally aborts a crash loop well before.
   progressDeadlineSeconds: 300
 
 analysis:
   initialDelay: 60s
   interval: 30s
-  count: 8
+  # No count: the background analysis measures for as long as the canary runs.
+  # With count 8 it ended after 4.5 min, possibly before the canary had served
+  # enough slow requests to fail (ADR 0002).
+  count: null
   failureLimit: 1
   # Rate window of each measurement. The canary gets only a few requests per
   # minute, so 1m windows were too noisy (one slow answer = 50 % "slow").
@@ -55,6 +62,8 @@ analysis:
   # Ollama is shared by stable and canary, so an isolated slow answer is not the
   # canary's fault. First real canary: aborted on 1 slow sample out of ~2 (ADR 0002).
   maxSlowRatio: 0.5
+  # ...or if a canary container restarted (crash loop, liveness kill, OOM).
+  maxCanaryRestarts: 0
 
 slo:
   # Must be one of the histogram buckets of metrics/sli.py, written as the
@@ -84,6 +93,9 @@ trafficGenerator:
   # 24 h false-positive measurement.
   enabled: true
   image: curlimages/curl:8.11.0
-  # One question every ~15 s: enough to feed the SLIs, light enough for a CPU-only LLM.
-  intervalSeconds: 15
+  # Open loop: one question every 30 s, whatever the response time (each curl runs
+  # in the background). The former loop waited for the answer, then 15 s: a slow
+  # service received fewer requests, which diluted the slow ratio and hid the
+  # latency incident (ADR 0003). Same average load as before (~2 questions/min).
+  intervalSeconds: 30
   timeoutSeconds: 120

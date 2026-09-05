@@ -32,6 +32,15 @@ mesurer RTO et RPO.
 - RTO = instant de la panne → `POST /api/query` répond 200 et le nombre de documents est
   identique à avant.
 
+## Retour d'expérience (redémarrage après la reprise, novembre 2026)
+Après la reprise et un redémarrage du nœud, Ollama était *Ready* mais sans modèle : toutes
+les questions recevaient un 404 d'Ollama, donc un 500 de l'API. Le volume de modèles ne
+contenait plus le modèle (cause non établie) et le `ollama pull` de démarrage a échoué,
+CoreDNS n'étant pas encore prêt. Le script marquait le pod prêt même après un échec.
+Correction (`charts/neuralrag/templates/ollama.yaml`) : le pull est relancé toutes les 10 s
+jusqu'à réussir, et le pod n'est prêt qu'après. Le cache de modèles étant exclu des
+sauvegardes (décision 2), chaque reprise dépend de ce retéléchargement.
+
 ## Limites
 - Copie à chaud de la base SQLite de ChromaDB : cohérence « après crash », acceptable pour
   un index reconstructible. En production : hook Velero de mise en pause ou snapshot CSI.

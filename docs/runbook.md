@@ -34,6 +34,20 @@ saine**. Tout le reste passe par un humain et par Git.
 2. Image introuvable (GHCR privé ?), OOMKilled (augmenter `backend.resources.limits` dans Git),
    pod-failure simulé (`kubectl get podchaos -A`).
 
+## backend-restarting
+
+`NeuralRAGBackendRestarting` — plus de 2 redémarrages de conteneur backend en 15 min.
+Les requêtes en cours meurent avec le conteneur et n'apparaissent pas dans les SLI.
+
+1. `kubectl -n neuralrag get pods -l app.kubernetes.io/name=neuralrag-backend` puis
+   `kubectl -n neuralrag describe pod <pod>` : raison du dernier arrêt (*Liveness probe failed*,
+   *OOMKilled*, *Error*).
+2. Sonde liveness en échec : la boucle d'événements est bloquée (appel synchrone sans timeout).
+   Logs du conteneur précédent : `kubectl -n neuralrag logs <pod> --previous | tail`.
+   Vérifier ChromaDB et Ollama (`/health/ready`), et `kubectl get networkchaos -A`.
+3. Crash au démarrage : release fautive (`CHAOS_CRASH_ON_START`) ou image cassée ; le canary
+   doit déjà avoir été annulé (`rollout-aborted`).
+
 ## rollout-aborted
 
 `NeuralRAGRolloutAborted` — l'analyse canary a échoué ; le trafic est déjà revenu sur la

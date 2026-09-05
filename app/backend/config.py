@@ -38,6 +38,18 @@ class Settings(BaseSettings):
     ollama_model: str = "mistral"
     """Name of the model to pull and use for generation (e.g. mistral, llama3)."""
 
+    chroma_timeout_s: float = 5.0
+    """Socket timeout of every HTTP call to ChromaDB. The chromadb 0.5 client sets none:
+    without it, a partitioned ChromaDB made each query hang until the pod was killed."""
+
+    retrieval_timeout_s: float = 10.0
+    """Wall-clock budget of the embed + retrieve step of a query. Past it, the API
+    answers 503 instead of waiting (ADR 0003, retour d'expérience)."""
+
+    engine_init_timeout_s: float = 60.0
+    """Budget for the lazy creation of the RAG engine (model load + ChromaDB connection)
+    on the first query of a pod. Past it, that query answers 503."""
+
     ollama_num_predict: int = 0
     """Maximum number of generated tokens (0 = model default). Bounding the answer
     length bounds the latency, which the latency SLO depends on."""

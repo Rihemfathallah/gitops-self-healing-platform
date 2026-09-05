@@ -52,12 +52,17 @@ spec:
         - name: ollama
           image: {{ .Values.ollama.image }}
           # Serve, pull the model if missing (idempotent), keep serving.
+          # The pod is ready only once the pull has succeeded: after a node restart,
+          # the first pull failed (DNS not up yet) and the old script marked the pod
+          # ready anyway, without a model; every query got a 404 from Ollama (ADR 0004).
           command: ["/bin/sh", "-c"]
           args:
             - |
               ollama serve &
               until ollama list >/dev/null 2>&1; do sleep 1; done
-              ollama pull {{ .Values.ollama.model }}
+              until ollama pull {{ .Values.ollama.model }}; do
+                echo "model pull failed, retrying in 10 s"; sleep 10
+              done
               touch /tmp/model-ready
               wait
           env:

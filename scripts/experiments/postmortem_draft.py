@@ -18,7 +18,7 @@ CAUSES = {
     "latency": "Release configurée pour ajouter 40 s à chaque requête API (CHAOS_LATENCY_MS=40000).",
     "crash": "Release configurée pour planter au démarrage (CHAOS_CRASH_ON_START=true).",
     "dependency-loss": "Partition réseau entre le backend et ChromaDB (Chaos Mesh NetworkChaos).",
-    "latency-net": "Délai réseau de 20 s entre le backend et Ollama (Chaos Mesh NetworkChaos).",
+    "latency-net": "Délai réseau de 25 s sur les réponses d'Ollama au backend (Chaos Mesh NetworkChaos).",
     "pod-failure": "Toutes les pods backend rendues indisponibles pendant 10 minutes (Chaos Mesh PodChaos).",
 }
 
