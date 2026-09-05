@@ -5,8 +5,8 @@
 image:
   tag: sha-b59202b
 release:
-  id: baseline
+  id: bad-errors-1
   chaos:
-    errorRate: "0"
+    errorRate: "0.5"
     latencyMs: "0"
     crashOnStart: "false"
