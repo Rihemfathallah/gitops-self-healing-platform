@@ -1,0 +1,17 @@
+# Incident: every backend pod crashes and stays down (container replaced by "pause").
+# Expected: no target left -> NeuralRAGBackendDown (page).
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: incident-pod-failure
+  namespace: neuralrag
+  labels:
+    neuralrag/incident: pod-failure
+spec:
+  action: pod-failure
+  mode: all
+  selector:
+    namespaces: [neuralrag]
+    labelSelectors:
+      app.kubernetes.io/name: neuralrag-backend
+  duration: 10m

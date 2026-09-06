@@ -1,0 +1,24 @@
+# Incident: the backend loses its vector database (network partition backend -> ChromaDB).
+# Expected: /api/query returns 500 -> NeuralRAGAvailabilityBudgetFastBurn (page).
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: incident-dependency-loss
+  namespace: neuralrag
+  labels:
+    neuralrag/incident: dependency-loss
+spec:
+  action: partition
+  mode: all
+  selector:
+    namespaces: [neuralrag]
+    labelSelectors:
+      app.kubernetes.io/name: neuralrag-backend
+  direction: to
+  target:
+    mode: all
+    selector:
+      namespaces: [neuralrag]
+      labelSelectors:
+        app.kubernetes.io/name: neuralrag-chromadb
+  duration: 15m
