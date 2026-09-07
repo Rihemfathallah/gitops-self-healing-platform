@@ -1,0 +1,8 @@
+cd scripts/experiments && python3 alert_experiment.py
+[09:39:58] incident dependency-loss #1: injecting, expecting NeuralRAGAvailabilityBudgetFastBurn
+[09:42:50]   alert fired after 171 s; waiting for recovery
+[10:03:21] incident latency #2: injecting, expecting NeuralRAGLatencyBudgetFastBurn
+[10:16:19]   alert fired after 778 s; waiting for recovery
+[10:23:53] incident pod-failure #3: injecting, expecting NeuralRAGBackendDown
+[10:25:24]   alert fired after 91 s; waiting for recovery
+[13:43:42] summary: {'incidents': 3, 'detected': 3, 'all_detected': True, 'time_to_alert': {'n': 3, 'median_s': 171.4, 'max_s': 777.6, 'min_s': 91.2}, 'by_incident': {'dependency-loss': {'runs': 1, 'detected': 1, 'time_to_alert': {'n': 1, 'median_s': 171.4, 'max_s': 171.4, 'min_s': 171.4}}, 'latency': {'runs': 1, 'detected': 1, 'time_to_alert': {'n': 1, 'median_s': 777.6, 'max_s': 777.6, 'min_s': 777.6}}, 'pod-failure': {'runs': 1, 'detected': 1, 'time_to_alert': {'n': 1, 'median_s': 91.2, 'max_s': 91.2, 'min_s': 91.2}}}}

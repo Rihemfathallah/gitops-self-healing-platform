@@ -1,0 +1,4 @@
+incident,run,expected_alert,detected,t_inject,t_alert,t_chaos_removed,time_to_alert_s,other_alerts,resolved_after_removal
+dependency-loss,1,NeuralRAGAvailabilityBudgetFastBurn,True,2026-11-22T14:39:58+00:00,2026-11-22T14:42:49+00:00,2026-11-22T14:42:50+00:00,171.4,,True
+latency,2,NeuralRAGLatencyBudgetFastBurn,True,2026-11-22T15:03:21+00:00,2026-11-22T15:16:19+00:00,2026-11-22T15:16:19+00:00,777.6,NeuralRAGAvailabilityBudgetSlowBurn,True
+pod-failure,3,NeuralRAGBackendDown,True,2026-11-22T15:23:53+00:00,2026-11-22T15:25:24+00:00,2026-11-22T15:25:24+00:00,91.2,NeuralRAGAvailabilityBudgetSlowBurn;NeuralRAGBackendRestarting,False
