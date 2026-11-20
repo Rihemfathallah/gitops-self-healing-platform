@@ -14,7 +14,7 @@ tests:
         values: '0+30x240'
       - series: 'http_requests_total{job="neuralrag-backend", code="500"}'
         values: '0+0.03x240'
-      - series: 'http_request_duration_seconds_bucket{job="neuralrag-backend", le="10.0"}'
+      - series: 'http_request_duration_seconds_bucket{job="neuralrag-backend", le="30.0"}'
         values: '0+30x240'
       - series: 'http_request_duration_seconds_count{job="neuralrag-backend"}'
         values: '0+30x240'
@@ -64,10 +64,10 @@ tests:
           - labels: 'neuralrag:sli_errors:ratio_rate5m'
             value: 0.5
 
-  # 3 — Latency incident: after 1 h, every request takes more than 10 s.
+  # 3 — Latency incident: after 1 h, every request takes more than 30 s.
   - interval: 30s
     input_series:
-      - series: 'http_request_duration_seconds_bucket{job="neuralrag-backend", le="10.0"}'
+      - series: 'http_request_duration_seconds_bucket{job="neuralrag-backend", le="30.0"}'
         values: '0+30x120 3600x40'
       - series: 'http_request_duration_seconds_count{job="neuralrag-backend"}'
         values: '0+30x160'
@@ -85,7 +85,7 @@ tests:
               slo: latency
             exp_annotations:
               summary: "NeuralRAG burns its latency error budget too fast"
-              description: "More than 16.8 % of requests took over 10 s, over both the last 1h and the last 5m."
+              description: "More than 16.8 % of requests took over 30 s, over both the last 1h and the last 5m."
               runbook_url: "https://github.com/Rihemfathallah/gitops-self-healing-platform/blob/main/docs/runbook.md#latency-burn"
       - eval_time: 80m
         alertname: NeuralRAGAvailabilityBudgetFastBurn

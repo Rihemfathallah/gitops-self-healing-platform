@@ -11,7 +11,7 @@ rarement quelques jours, et les incidents simulés doivent être détectés en q
 | SLO | SLI | Cible | Budget |
 | --- | --- | --- | --- |
 | Disponibilité | part des requêtes API non 5xx | 99,5 % sur 7 j | 0,5 % |
-| Latence | part des requêtes API servies en ≤ 10 s (⇔ p95 ≤ 10 s) | 95 % sur 7 j | 5 % |
+| Latence | part des requêtes API servies en ≤ 30 s (⇔ p95 ≤ 30 s) | 95 % sur 7 j | 5 % |
 
 Alertes multi-fenêtres / multi-burn-rate (méthode du *SRE Workbook*), recalculées pour 7 jours :
 - **page** : 2 % du budget en 1 h → burn rate 0,02 × 168 / 1 = **3,36** (fenêtres 1 h et 5 min) ;
@@ -22,8 +22,13 @@ Alertes multi-fenêtres / multi-burn-rate (méthode du *SRE Workbook*), recalcul
   la rétention Prometheus (8 j) et reste interprétable.
 - Le SLI de latence est un ratio de requêtes rapides et non un p95 calculé : un ratio se
   somme correctement sur des fenêtres et donne directement un budget d'erreur.
-- 10 s : la réponse est générée par un LLM sur CPU (qwen2.5 0,5B) ; seuil à revoir après la
-  première mesure de base (`make exp-slo`). Le seuil doit être une borne de l'histogramme
+- 30 s : la réponse est générée par un LLM sur CPU (qwen2.5 0,5B), sans GPU. Le seuil initial
+  de 10 s a été abandonné après la première mesure de base (`make exp-slo`, 10 min) : 100 %
+  de disponibilité mais p95 ≈ 50 s, 0 % des requêtes sous 10 s. Le travail par requête a été
+  réduit (96 tokens, 2 extraits), la charge de fond aussi (une question toutes les 15 s,
+  1 utilisateur k6), et le seuil fixé à 30 s, la borne d'histogramme la plus proche d'un
+  objectif tenable sur cette machine. Un SLO doit refléter ce que le service peut promettre ;
+  sur GPU, il redescendrait sous 5 s. Le seuil doit être une borne de l'histogramme
   (`metrics/sli.py`). Pour que la latence reste bornée, la réponse est limitée à 160 tokens
   (`ollama.numPredict`) et le prompt à 3 extraits (`backend.topK`).
 

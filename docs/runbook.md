@@ -19,7 +19,7 @@ saine**. Tout le reste passe par un humain et par Git.
 
 ## latency-burn
 
-`NeuralRAGLatencyBudgetFastBurn` / `...SlowBurn` — trop de requêtes au-delà de 10 s.
+`NeuralRAGLatencyBudgetFastBurn` / `...SlowBurn` — trop de requêtes au-delà de 30 s.
 
 1. Ollama saturé ? `kubectl -n neuralrag top pods` ; une seule génération à la fois sur CPU.
 2. Réseau entre backend et Ollama/ChromaDB (incident simulé : NetworkChaos `incident-latency`) :

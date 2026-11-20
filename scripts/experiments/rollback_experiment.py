@@ -32,7 +32,7 @@ import time
 
 FAULTS = {
     "errors": dict(error_rate="0.5"),        # half of the requests fail
-    "latency": dict(latency_ms="15000"),     # every request takes > 15 s
+    "latency": dict(latency_ms="40000"),     # every request takes > 40 s
     "crash": dict(crash="true"),             # pods crash-loop, never ready
 }
 CSV = RESULTS / "rollback" / "runs.csv"

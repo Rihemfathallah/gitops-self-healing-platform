@@ -15,10 +15,10 @@ TEMPLATE = (OUT / "TEMPLATE.md").read_text(encoding="utf-8")
 
 CAUSES = {
     "errors": "Release configurée pour faire échouer 50 % des requêtes API (CHAOS_ERROR_RATE=0.5).",
-    "latency": "Release configurée pour ajouter 15 s à chaque requête API (CHAOS_LATENCY_MS=15000).",
+    "latency": "Release configurée pour ajouter 40 s à chaque requête API (CHAOS_LATENCY_MS=40000).",
     "crash": "Release configurée pour planter au démarrage (CHAOS_CRASH_ON_START=true).",
     "dependency-loss": "Partition réseau entre le backend et ChromaDB (Chaos Mesh NetworkChaos).",
-    "latency-net": "Délai réseau de 11 s entre le backend et Ollama (Chaos Mesh NetworkChaos).",
+    "latency-net": "Délai réseau de 20 s entre le backend et Ollama (Chaos Mesh NetworkChaos).",
     "pod-failure": "Toutes les pods backend rendues indisponibles pendant 10 minutes (Chaos Mesh PodChaos).",
 }
 

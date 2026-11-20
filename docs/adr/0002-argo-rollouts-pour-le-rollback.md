@@ -13,7 +13,7 @@ qui déclenche un rollback Argo CD.
 **Argo Rollouts**, stratégie canary (50 % des pods), avec une *AnalysisTemplate* qui
 interroge Prometheus **sur les seules pods du canary** :
 - taux de 5xx du canary ≤ 5 % ;
-- part des requêtes du canary plus lentes que le seuil du SLO (10 s) ≤ 5 %.
+- part des requêtes du canary plus lentes que le seuil du SLO (30 s) ≤ 5 %.
 Deux mesures en échec (toutes les 30 s, après 60 s de chauffe) → abandon → 100 % du trafic
 sur la version stable. Une release qui ne devient jamais prête (crash) est abandonnée par
 `progressDeadlineAbort` au bout de 5 min.

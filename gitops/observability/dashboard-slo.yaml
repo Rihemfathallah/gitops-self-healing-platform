@@ -152,7 +152,7 @@ data:
         {
           "id": 4,
           "type": "stat",
-          "title": "Requests ≤ 10 s (7d) — target 95 %",
+          "title": "Requests ≤ 30 s (7d) — target 95 %",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -496,7 +496,7 @@ data:
         {
           "id": 22,
           "type": "timeseries",
-          "title": "Latency p95 (SLO threshold 10 s)",
+          "title": "Latency p95 (SLO threshold 30 s)",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -535,7 +535,7 @@ data:
                   },
                   {
                     "color": "red",
-                    "value": 10
+                    "value": 30
                   }
                 ]
               }

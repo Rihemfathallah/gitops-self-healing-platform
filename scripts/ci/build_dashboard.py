@@ -47,7 +47,7 @@ panels = [
          thresholds=[{"color": "red", "value": None}, {"color": "green", "value": 0.995}], decimals=3),
     stat(3, "Availability error budget left", "neuralrag:slo_availability:error_budget_remaining", 6, 1,
          thresholds=RED_GREEN_BUDGET, decimals=1),
-    stat(4, "Requests ≤ 10 s (7d) — target 95 %", "1 - neuralrag:sli_slow:ratio_rate7d", 12, 1,
+    stat(4, "Requests ≤ 30 s (7d) — target 95 %", "1 - neuralrag:sli_slow:ratio_rate7d", 12, 1,
          thresholds=[{"color": "red", "value": None}, {"color": "green", "value": 0.95}], decimals=2),
     stat(5, "Latency error budget left", "neuralrag:slo_latency:error_budget_remaining", 18, 1,
          thresholds=RED_GREEN_BUDGET, decimals=1),
@@ -70,9 +70,9 @@ panels = [
     series(21, "Requests per second by status code", [
         ('sum by (code) (rate(http_requests_total{job="neuralrag-backend"}[1m]))', "{{code}}"),
     ], 0, 16, unit="reqps"),
-    series(22, "Latency p95 (SLO threshold 10 s)", [
+    series(22, "Latency p95 (SLO threshold 30 s)", [
         ("neuralrag:latency_seconds:p95_rate5m", "p95"),
-    ], 12, 16, unit="s", thresholds=[{"color": "green", "value": None}, {"color": "red", "value": 10}]),
+    ], 12, 16, unit="s", thresholds=[{"color": "green", "value": None}, {"color": "red", "value": 30}]),
     series(23, "Error ratio per pod (canary vs stable)", [
         ('(sum by (pod) (rate(http_requests_total{job="neuralrag-backend", code=~"5.."}[1m])) or '
          'sum by (pod) (rate(http_requests_total{job="neuralrag-backend"}[1m])) * 0) / '

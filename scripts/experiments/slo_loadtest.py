@@ -5,7 +5,7 @@ and latency SLIs are then read from Prometheus over exactly the test window.
 
 k6 runs in Docker (no install needed): grafana/k6, host network.
 
-usage: slo_loadtest.py [--duration 30m] [--vus 2]
+usage: slo_loadtest.py [--duration 30m] [--vus 1]
 """
 
 from __future__ import annotations
@@ -19,8 +19,8 @@ from lib import API_URL, RESULTS, ROOT, api_key, iso, log, now, prom_scalar, sh,
 
 K6_IMAGE = "grafana/k6:1.0.0"
 TARGET_AVAILABILITY = 0.995
-TARGET_FAST_RATIO = 0.95          # share of requests <= 10 s  (p95 <= 10 s)
-THRESHOLD_LE = "10.0"
+TARGET_FAST_RATIO = 0.95          # share of requests <= 30 s  (p95 <= 30 s)
+THRESHOLD_LE = "30.0"
 
 
 def seconds(duration: str) -> int:
@@ -33,7 +33,7 @@ def seconds(duration: str) -> int:
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--duration", default="30m")
-    p.add_argument("--vus", type=int, default=2)
+    p.add_argument("--vus", type=int, default=1)
     a = p.parse_args()
 
     out_dir = RESULTS / "slo"
@@ -80,8 +80,9 @@ def main() -> int:
             "requests": int(total),
             "availability": round(availability, 5) if availability is not None else None,
             "availability_target": TARGET_AVAILABILITY,
-            "fast_ratio_le_10s": round(fast_ratio, 5) if fast_ratio is not None else None,
+            "fast_ratio_under_threshold": round(fast_ratio, 5) if fast_ratio is not None else None,
             "fast_ratio_target": TARGET_FAST_RATIO,
+            "latency_threshold_s": float(THRESHOLD_LE),
             "p95_s_estimated": round(p95, 2) if p95 is not None else None,
         },
         "k6_client_view": k6,
