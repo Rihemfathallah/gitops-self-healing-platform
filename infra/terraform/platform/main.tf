@@ -82,9 +82,9 @@ resource "helm_release" "velero" {
   values = [templatefile("${path.module}/values/velero.yaml.tftpl", {
     plugin_image    = var.velero_aws_plugin_image
     bucket          = data.terraform_remote_state.cluster.outputs.velero_bucket
-    s3_url          = data.terraform_remote_state.cluster.outputs.minio_endpoint
-    access_key      = data.terraform_remote_state.cluster.outputs.minio_user
-    secret_key      = data.terraform_remote_state.cluster.outputs.minio_password
+    s3_url          = data.terraform_remote_state.cluster.outputs.s3_endpoint
+    access_key      = data.terraform_remote_state.cluster.outputs.s3_user
+    secret_key      = data.terraform_remote_state.cluster.outputs.s3_password
     backup_schedule = var.backup_schedule
   })]
 }

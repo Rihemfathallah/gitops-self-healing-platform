@@ -150,7 +150,7 @@ def main() -> int:
         done = [b for b in scheduled_backups() if b.get("status", {}).get("phase") == "Completed"]
         return done[-1] if done else None
 
-    wait_for(lambda: latest_backup() is not None, 600, what="backups synced from MinIO")
+    wait_for(lambda: latest_backup() is not None, 600, what="backups synced from the S3 store")
     restored_from = latest_backup()["metadata"]["name"]
     restore_name = f"dr-{int(t_disaster)}"
     manifest = {

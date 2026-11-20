@@ -7,9 +7,14 @@ EF-12/EF-13 : sauvegarder le cluster et le volume ChromaDB, détruire le cluster
 mesurer RTO et RPO.
 
 ## Décisions
-1. **MinIO tourne hors du cluster**, comme conteneur Docker sur le réseau `kind`, créé par
-   Terraform. Un stockage de sauvegarde à l'intérieur du cluster disparaîtrait avec lui. Les
-   données MinIO vivent dans un volume Docker que `make destroy-cluster` ne supprime pas.
+1. **Le stockage S3 tourne hors du cluster**, comme conteneur Docker sur le réseau `kind`,
+   créé par Terraform. Un stockage de sauvegarde à l'intérieur du cluster disparaîtrait avec
+   lui. Ses données vivent dans un volume Docker que `make destroy-cluster` ne supprime pas.
+   Le serveur S3 est **SeaweedFS** (`weed mini`) et non MinIO : MinIO a archivé son édition
+   communautaire et retiré ses images publiques de Docker Hub puis de Quay en 2026 ; la
+   première version de ce projet, qui épinglait une image MinIO, ne démarrait plus.
+   Leçon retenue : une dépendance d'infrastructure doit avoir un mainteneur actif, et
+   l'image doit être épinglée par version.
 2. **Velero** sauvegarde le namespace `neuralrag` toutes les 15 min (*Schedule*), volumes
    copiés fichier par fichier (kopia) car kind n'a pas de snapshots CSI. Le cache de modèles
    d'Ollama est exclu (il se retélécharge).

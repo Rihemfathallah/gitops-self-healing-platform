@@ -6,7 +6,7 @@ uniquement depuis Git, surveille deux SLO, **annule automatiquement une mauvaise
 script et stocké dans [`results/`](results/).
 
 **Outils** : Terraform · Kubernetes (kind) · Argo CD · Argo Rollouts · Helm · Prometheus ·
-Alertmanager · Grafana · Velero · MinIO · Chaos Mesh · k6 · GitHub Actions · GHCR
+Alertmanager · Grafana · Velero · SeaweedFS (S3) · Chaos Mesh · k6 · GitHub Actions · GHCR
 
 ## Résultats
 
@@ -48,7 +48,7 @@ flowchart LR
   ro -->|échec ⇒ abort<br/>retour version stable| app
 
   tf[Terraform] -->|kind · Argo CD · Velero| k8s((cluster kind))
-  velero[Velero] -->|toutes les 15 min| minio[(MinIO<br/>hors cluster)]
+  velero[Velero] -->|toutes les 15 min| s3[(SeaweedFS S3<br/>hors cluster)]
   chaos[Chaos Mesh<br/>scripts d'incident] -.-> app
 
   classDef repair fill:#fde7e7,stroke:#c0392b;
@@ -81,7 +81,7 @@ Prérequis (Linux, ou VM Kali / WSL2) : Docker, Terraform ≥ 1.6, kubectl, git,
 8 Go de RAM minimum, 12 Go conseillés. Optionnels : helm, plugin `kubectl argo rollouts`.
 
 ```bash
-make up          # cluster kind + MinIO + Argo CD + Velero ; Argo CD synchronise le reste (~10 min)
+make up          # cluster kind + stockage S3 + Argo CD + Velero ; Argo CD synchronise le reste (~10 min)
 make status      # applications Argo CD, rollout, pods
 make urls        # NeuralRAG :8080/docs · Grafana :3000 · Prometheus :9090 · Alertmanager :9093 · Argo CD :8443
 make secrets     # clé API et mot de passe Grafana (générés par Terraform, jamais dans Git)
@@ -130,7 +130,7 @@ suivent exactement le chemin GitOps d'une vraie release.
 | Pods `ImagePullBackOff` sur `neuralrag-backend` | paquet GHCR encore privé, ou workflow *release* pas encore passé |
 | Pods qui redémarrent, « too many open files » | limites inotify : relancer `scripts/install-prereqs.sh` |
 | Pods `Pending` / `OOMKilled` | RAM de la VM : passer à 12 Go, ou `backend.replicas: 1` (le canary passe alors à 100 %) |
-| `BackupStorageLocation` *Unavailable* (`kubectl -n velero get bsl`) | le pod Velero ne résout pas `selfheal-minio` : remplacer par l'IP du conteneur (`docker inspect selfheal-minio`) dans `values/velero.yaml.tftpl` |
+| `BackupStorageLocation` *Unavailable* (`kubectl -n velero get bsl`) | le pod Velero ne résout pas `selfheal-s3` : remplacer par l'IP du conteneur (`docker inspect selfheal-s3`) dans `values/velero.yaml.tftpl` |
 | Applications Argo CD bloquées en *Progressing* | `kubectl -n argocd get applications` puis l'UI Argo CD (http://localhost:8443, utilisateur `admin`, mot de passe : `kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' \| base64 -d`) |
 
 ## Correspondance avec le cahier des charges
@@ -147,7 +147,7 @@ suivent exactement le chemin GitOps d'une vraie release.
 | EF-09 rollback automatique | [`charts/neuralrag/templates/`](charts/neuralrag/templates/) (Rollout + AnalysisTemplate) |
 | EF-10 incidents reproductibles | [`app/backend/chaos.py`](app/backend/chaos.py), [`incidents/`](incidents/) |
 | EF-11 postmortems | [`docs/postmortems/`](docs/postmortems/) |
-| EF-12 sauvegardes | [`infra/terraform/cluster/minio.tf`](infra/terraform/cluster/minio.tf), Velero dans `platform/` |
+| EF-12 sauvegardes | [`infra/terraform/cluster/object-storage.tf`](infra/terraform/cluster/object-storage.tf), Velero dans `platform/` |
 | EF-13 destruction / restauration | [`scripts/experiments/dr_drill.py`](scripts/experiments/dr_drill.py) |
 | EF-14 à EF-16 (lot 3, sécurité) | à venir (tag v1.0.0) |
 
@@ -159,7 +159,7 @@ charts/neuralrag/     chart Helm : Rollout, AnalysisTemplate, ChromaDB, Ollama, 
 gitops/apps/          Applications Argo CD (app of apps)
 gitops/releases/      release désirée : tag d'image, fautes injectées
 gitops/observability/ règles SLO, alertes, tableau de bord Grafana
-infra/terraform/      cluster (kind + MinIO) et plateforme (Argo CD, Velero, app racine)
+infra/terraform/      cluster (kind + S3 SeaweedFS) et plateforme (Argo CD, Velero, app racine)
 incidents/            incidents Chaos Mesh
 scripts/experiments/  scripts de mesure → results/
 docs/                 ADR, runbook, postmortems
