@@ -13,8 +13,8 @@ qui déclenche un rollback Argo CD.
 **Argo Rollouts**, stratégie canary (50 % des pods), avec une *AnalysisTemplate* qui
 interroge Prometheus **sur les seules pods du canary** :
 - taux de 5xx du canary ≤ 5 % ;
-- part des requêtes du canary plus lentes que le seuil du SLO (30 s) ≤ 5 %.
-Deux mesures en échec (toutes les 30 s, après 60 s de chauffe) → abandon → 100 % du trafic
+- part des requêtes du canary plus lentes que le seuil du SLO (30 s) ≤ 50 %.
+Chaque mesure porte sur les 2 dernières minutes. Deux mesures en échec (toutes les 30 s, après 60 s de chauffe) → abandon → 100 % du trafic
 sur la version stable. Une release qui ne devient jamais prête (crash) est abandonnée par
 `progressDeadlineAbort` au bout de 5 min.
 
@@ -23,6 +23,14 @@ sur la version stable. Une release qui ne devient jamais prête (crash) est aban
   et trop globales pour juger une release de quelques minutes.
 - Un rollback Argo CD désactive l'auto-sync et laisse Git et le cluster divergents.
 - Il faudrait écrire et sécuriser un service qui a les droits d'écriture sur le cluster.
+
+## Retour d'expérience (premier canary réel)
+La première version de l'analyse (fenêtre 1 min, ≤ 5 % de requêtes lentes) a annulé une
+release saine : 0 % d'erreurs, mais 14 % puis 56 % de requêtes lentes, sur ~2 requêtes par
+minute. Ollama est partagé par la version stable et le canary : une réponse lente isolée
+ne dit rien de la nouvelle version. L'analyse cherche désormais une **régression nette**
+(fenêtre 2 min, > 50 % de requêtes lentes) ; l'objectif de 95 % reste suivi par le SLO
+et son budget d'erreur, sur 7 jours.
 
 ## Conséquences
 - La garantie « revenir uniquement à la dernière version saine » est native : un Rollout

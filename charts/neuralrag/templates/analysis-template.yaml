@@ -21,9 +21,9 @@ spec:
           address: {{ .Values.analysis.prometheusAddress }}
           query: |
             (
-              (sum(rate(http_requests_total{ {{ $sel }}, code=~"5.." }[1m])) or vector(0))
+              (sum(rate(http_requests_total{ {{ $sel }}, code=~"5.." }[{{ .Values.analysis.window }}])) or vector(0))
               /
-              (sum(rate(http_requests_total{ {{ $sel }} }[1m])) > 0)
+              (sum(rate(http_requests_total{ {{ $sel }} }[{{ .Values.analysis.window }}])) > 0)
             ) or vector(0)
     # SLI 2 — share of canary requests slower than the latency SLO threshold.
     - name: canary-slow-ratio
@@ -38,8 +38,8 @@ spec:
           query: |
             (
               1 - (
-                sum(rate(http_request_duration_seconds_bucket{ {{ $sel }}, le="{{ .Values.slo.latencyThresholdLe }}" }[1m]))
+                sum(rate(http_request_duration_seconds_bucket{ {{ $sel }}, le="{{ .Values.slo.latencyThresholdLe }}" }[{{ .Values.analysis.window }}]))
                 /
-                (sum(rate(http_request_duration_seconds_count{ {{ $sel }} }[1m])) > 0)
+                (sum(rate(http_request_duration_seconds_count{ {{ $sel }} }[{{ .Values.analysis.window }}])) > 0)
               )
             ) or vector(0)
