@@ -35,4 +35,10 @@ Alertes multi-fenêtres / multi-burn-rate (méthode du *SRE Workbook*), recalcul
 ## Limites
 - Un SLI calculé côté application ne voit pas une panne totale (aucune requête n'arrive) :
   l'alerte symptôme `NeuralRAGBackendDown` couvre ce cas.
+- Le SLI est mesuré côté serveur : une connexion coupée avant d'atteindre l'application
+  n'y apparaît pas. La deuxième mesure de base l'a montré : Prometheus 100 % de réussite,
+  k6 3 échecs « EOF » sur 31. Cause : keep-alive d'uvicorn (5 s) égal au délai entre deux
+  requêtes de k6 (5 s), le serveur fermait parfois une connexion au moment où le client
+  la réutilisait. Correction : keep-alive serveur à 75 s. Le rapport `make exp-slo` publie
+  donc toujours aussi la vue client (k6) à côté de la vue Prometheus.
 - Les règles sont testées hors cluster par `promtool test rules` (CI).

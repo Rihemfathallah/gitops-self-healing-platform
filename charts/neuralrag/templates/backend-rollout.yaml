@@ -67,6 +67,10 @@ spec:
               value: {{ .Values.backend.logLevel | quote }}
             - name: AUTO_INDEX_ON_STARTUP
               value: "false"
+            # Keep idle connections open longer than any client waits between
+            # requests (uvicorn reads UVICORN_* variables; default is 5 s).
+            - name: UVICORN_TIMEOUT_KEEP_ALIVE
+              value: {{ .Values.backend.keepAliveSeconds | quote }}
             - name: API_KEY
               valueFrom:
                 secretKeyRef:
