@@ -1,0 +1,63 @@
+{
+  "generated_at": "2026-11-22T00:11:59+00:00",
+  "generated_by": "scripts/experiments",
+  "runs": 10,
+  "successful_rollbacks": 7,
+  "all_successful": false,
+  "detect_to_restored": {
+    "n": 7,
+    "median_s": 6.7,
+    "max_s": 11.9,
+    "min_s": 0.2
+  },
+  "push_to_restored": {
+    "n": 7,
+    "median_s": 192.6,
+    "max_s": 550.5,
+    "min_s": 105.9
+  },
+  "by_kind": {
+    "errors": {
+      "runs": 4,
+      "successful": 4,
+      "push_to_detect": {
+        "n": 4,
+        "median_s": 140.8,
+        "max_s": 185.9,
+        "min_s": 94.1
+      },
+      "detect_to_restored": {
+        "n": 4,
+        "median_s": 11.2,
+        "max_s": 11.9,
+        "min_s": 6.7
+      }
+    },
+    "latency": {
+      "runs": 3,
+      "successful": 0,
+      "push_to_detect": {
+        "n": 0
+      },
+      "detect_to_restored": {
+        "n": 0
+      }
+    },
+    "crash": {
+      "runs": 3,
+      "successful": 3,
+      "push_to_detect": {
+        "n": 3,
+        "median_s": 544.3,
+        "max_s": 550.3,
+        "min_s": 543.8
+      },
+      "detect_to_restored": {
+        "n": 3,
+        "median_s": 0.2,
+        "max_s": 0.2,
+        "min_s": 0.2
+      }
+    }
+  }
+}

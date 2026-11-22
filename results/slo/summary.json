@@ -1,0 +1,26 @@
+{
+  "generated_at": "2026-11-22T00:43:01+00:00",
+  "generated_by": "scripts/experiments",
+  "window_start": "2026-11-22T00:11:59+00:00",
+  "window_end": "2026-11-22T00:42:16+00:00",
+  "duration": "30m",
+  "vus": 1,
+  "release": "c58edad Revert \"test(incident): bad release 'errors' run 10\"",
+  "prometheus": {
+    "requests": 150,
+    "availability": 1.0,
+    "availability_target": 0.995,
+    "fast_ratio_under_threshold": 1.0,
+    "fast_ratio_target": 0.95,
+    "latency_threshold_s": 30.0,
+    "p95_s_estimated": 19.8
+  },
+  "k6_client_view": {
+    "requests": 93,
+    "failed_rate": 0,
+    "p95_ms": 19815.4
+  },
+  "availability_met": true,
+  "latency_met": true,
+  "passed": true
+}
