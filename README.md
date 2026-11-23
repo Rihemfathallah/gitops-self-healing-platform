@@ -174,5 +174,3 @@ désactivé par défaut et d'une image non root. Les notions de SLO, budget d'er
 postmortem sans reproche viennent de [Site Reliability Engineering](https://sre.google/sre-book/table-of-contents/)
 (Google).
 
-Hors périmètre : agent LLM de diagnostic (projet NOC Copilot), multi-cluster, cloud payant,
-service mesh.
